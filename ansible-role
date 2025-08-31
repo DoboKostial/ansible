@@ -1,4 +1,5 @@
 #!/bin/bash
+#wrapper for running ansible-role
 
 if [[ $# < 2 ]]; then
   cat <<HELP
