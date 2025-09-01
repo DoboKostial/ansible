@@ -1,5 +1,6 @@
 #!/bin/bash
-#wrapper for running ansible-role
+#wrapper for running ansible-role directly (no need for playbook)
+# e.g. usage: ./ansible-role db01-local vm_deployment -i inventory
 
 if [[ $# < 2 ]]; then
   cat <<HELP
