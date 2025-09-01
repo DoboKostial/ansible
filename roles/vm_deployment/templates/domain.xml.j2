@@ -1,0 +1,68 @@
+<domain type='kvm'>
+  <name>{{ hv.name }}</name>
+  <memory unit='MiB'>{{ hv.memory_mb }}</memory>
+  <vcpu>{{ hv.vcpus }}</vcpu>
+
+  <os>
+    <type arch='x86_64'>hvm</type>
+  </os>
+
+  <cpu mode='host-passthrough'/>
+
+  <features>
+    <acpi/><apic/><pae/>
+  </features>
+
+  <devices>
+    <!-- OS disk -->
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='{{ libvirt_pool_path }}/{{ hv.name }}.qcow2'/>
+      <target dev='vda' bus='virtio'/>
+    </disk>
+
+    <!-- data disk (optional) -->
+    {% if hv.data_disk_gb|int > 0 %}
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='{{ libvirt_pool_path }}/{{ hv.name }}-data.qcow2'/>
+      <target dev='vdb' bus='virtio'/>
+    </disk>
+    {% endif %}
+
+    <!-- cloud-init seed ISO -->
+    <disk type='file' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source file='{{ libvirt_pool_path }}/{{ hv.name }}-seed.iso'/>
+      <target dev='sda' bus='sata'/>
+      <readonly/>
+    </disk>
+
+    <!-- network -->
+    <interface type='network'>
+      <source network='{{ libvirt_network_name }}'/>
+      <model type='virtio'/>
+      {% if hv.mac is defined and hv.mac|length %}
+      <mac address='{{ hv.mac }}'/>
+      {% endif %}
+    </interface>
+
+    <!-- graphics -->
+    {% if graphics != 'none' %}
+    <graphics type='{{ graphics }}' listen='127.0.0.1' autoport='{{ 'yes' if autoport else 'no' }}'/>
+    {% else %}
+    <graphics type='none'/>
+    {% endif %}
+
+    <!-- serial console -->
+    {% if serial_console %}
+    <serial type='pty'><target port='0'/></serial>
+    <console type='pty'><target type='serial' port='0'/></console>
+    {% endif %}
+  </devices>
+
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+</domain>
+

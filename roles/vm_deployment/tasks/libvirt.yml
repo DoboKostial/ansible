@@ -1,0 +1,38 @@
+---
+- name: Ensure libvirt pool directory exists
+  file:
+    path: "{{ libvirt_pool_path }}"
+    state: directory
+    mode: "0755"
+
+- name: Define libvirt dir pool
+  community.libvirt.virt_pool:
+    command: define
+    name: "{{ libvirt_pool_name }}"
+    xml: |
+      <pool type='dir'>
+        <name>{{ libvirt_pool_name }}</name>
+        <target><path>{{ libvirt_pool_path }}</path></target>
+      </pool>
+  failed_when: false
+
+- name: Start & autostart pool
+  community.libvirt.virt_pool:
+    command: "{{ item }}"
+    name: "{{ libvirt_pool_name }}"
+  loop: [start, autostart]
+  failed_when: false
+
+- name: Download OS image
+  get_url:
+    url: "{{ image_url }}"
+    dest: "{{ libvirt_pool_path }}/{{ base_image_name }}"
+    mode: "0644"
+  when: image_url|length > 0
+
+- name: Deploying each host in loop
+  include_tasks: libvirt_one.yml
+  loop: "{{ vm_hosts }}"
+  loop_control:
+    loop_var: vmhost
+

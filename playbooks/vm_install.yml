@@ -1,0 +1,11 @@
+---
+- name: VMs deployment (multi-provider)
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../group_vars/db_local.yml     # this is dirty hack because being on localhost; intended for libvirt; normally ansible understands path 
+  vars:
+    vm_hosts: "{{ groups['db_local'] | default([]) }}"
+  roles:
+    - vm_deployment
+

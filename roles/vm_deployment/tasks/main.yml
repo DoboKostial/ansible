@@ -1,0 +1,11 @@
+---
+- name: Provider for deployment selected
+  debug:
+    msg: "Provision via {{ target_virtualization }}; hosts: {{ vm_hosts | default([]) }}"
+
+- include_tasks: libvirt.yml
+  when: target_virtualization == 'libvirt'
+
+- include_tasks: vmware.yml
+  when: target_virtualization == 'vmware'
+

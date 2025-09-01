@@ -1,0 +1,13 @@
+vm:
+  name: "db02-local"
+  hostname: "db02-local"
+  mac: "52:54:00:ab:cd:12"
+  vcpus: 2
+  memory_mb: 2048
+  os_disk_gb: 10
+  data_disk_gb: 2
+  ip_cidr: "192.168.122.112/24"
+  gateway: "192.168.122.1"
+  dns_servers: ["192.168.122.1"]
+  password: "Rocky_Balb0a" # should be in the vault
+

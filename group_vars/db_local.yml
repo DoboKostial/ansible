@@ -1,0 +1,51 @@
+---
+# virtualisation switch, default libvirtd
+target_virtualization: libvirt   # libvirt | vmware
+
+# SSH keys to inject to VM installation (local users, normally in some key vault or kerberos/IPA/... infrastructure)
+# ansible_master_pubkeys:
+#  - "{{ lookup('file', '/home/ansible_master/.ssh/id_ed25519.pub') }}" # on localhost permissions problem obviously
+
+ansible_master_pubkeys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBILiayOh8hknMLeYILupd3HetTQu116Sj03vY6FT7Ar ansible_master@thinkpad"
+rocky_pubkeys:
+  - "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') | default('') }}" # (user for first login if root not desired)
+
+# Libvirt (qemu:///system) – common
+libvirt_pool_name: "libvirt-images"
+libvirt_pool_path: "/home/{{ lookup('env','USER') }}/libvirt-images"
+libvirt_network_name: "default"
+
+#using this commented line bellow means You download it from public repo, that means a lot of waiting
+# better use local mirror (file, ftp, http)
+#image_url: "https://download.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud.latest.x86_64.qcow2"
+image_url: ""   # skip downloading
+base_image_name: "Rocky-9-GenericCloud.latest.x86_64.qcow2"
+
+graphics: "vnc" # or tty, but vnc means you have a visual console like vCenter :)
+autoport: true
+serial_console: true
+
+# SSH wait
+ssh_user: rocky
+ssh_port: 22
+ssh_wait_timeout: 420
+
+###
+### VMware varables (for vmware, TBD)
+###
+
+vcenter_hostname: "vcenter.example.local"
+vcenter_username: "admin@vsphere.local"
+vcenter_password: "{{ vault_vcenter_password | default('') }}"
+validate_certs: false
+vmw_datacenter: "DatacenterXYZ"
+vmw_cluster: "ClusterXYZ"
+vmw_datastore: "DatastoreXYZ"
+vmw_folder: "/DBs"
+vmw_network: "VM Network"
+vmw_template: "rocky-9"
+vmw_cpu: 2
+vmw_memory_mb: 2048
+vmw_additional_disk_gb: 2
+

@@ -1,0 +1,13 @@
+version: 2
+ethernets:
+  nic0:
+    match:
+      macaddress: "{{ item.mac | lower }}"
+    set-name: eth0
+    dhcp4: false
+    dhcp6: false
+    addresses:
+      - "{{ item.ip_cidr }}"
+    gateway4: "{{ item.gateway }}"
+    nameservers:
+      addresses: [{% for d in item.dns_servers %}{{ d }}{% if not loop.last %}, {% endif %}{% endfor %}]

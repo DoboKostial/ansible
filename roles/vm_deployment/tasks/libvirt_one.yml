@@ -1,0 +1,91 @@
+---
+- name: Gather per-host vm dict
+  set_fact:
+    hv: "{{ hostvars[vmhost].vm }}"
+
+- name: Create OS basix disk
+  command:
+    cmd: >
+      qemu-img create -f qcow2 -F qcow2
+      -b {{ libvirt_pool_path }}/{{ base_image_name }}
+      {{ libvirt_pool_path }}/{{ hv.name }}.qcow2
+      {{ hv.os_disk_gb }}G
+  args:
+    creates: "{{ libvirt_pool_path }}/{{ hv.name }}.qcow2"
+
+- name: Create data disk (if requested)
+  when: hv.data_disk_gb|int > 0
+  command:
+    cmd: >
+      qemu-img create -f qcow2
+      {{ libvirt_pool_path }}/{{ hv.name }}-data.qcow2
+      {{ hv.data_disk_gb }}G
+  args:
+    creates: "{{ libvirt_pool_path }}/{{ hv.name }}-data.qcow2"
+
+- name: Render user-data
+  template:
+    src: user-data.j2
+    dest: "{{ libvirt_pool_path }}/{{ hv.name }}-user-data.yml"
+    mode: "0644"
+  vars:
+    item: "{{ hv }}"
+
+- name: Render meta-data
+  template:
+    src: meta-data.j2
+    dest: "{{ libvirt_pool_path }}/{{ hv.name }}-meta-data.yml"
+    mode: "0644"
+  vars:
+    item: "{{ hv }}"
+
+
+- name: Render network-config 
+  template:
+    src: network-config.j2
+    dest: "{{ libvirt_pool_path }}/{{ hv.name }}-network-config.yml"
+    mode: "0644"
+  vars:
+    item: "{{ hv }}"
+
+- name: Build seed ISO from generic ISO with explicit network-config (libvirt headache)
+  command:
+    cmd: >
+      cloud-localds
+      --network-config={{ libvirt_pool_path }}/{{ hv.name }}-network-config.yml
+      {{ libvirt_pool_path }}/{{ hv.name }}-seed.iso
+      {{ libvirt_pool_path }}/{{ hv.name }}-user-data.yml
+      {{ libvirt_pool_path }}/{{ hv.name }}-meta-data.yml
+  args:
+    creates: "{{ libvirt_pool_path }}/{{ hv.name }}-seed.iso"
+
+- name: Define libvirt domain from jinja template
+  community.libvirt.virt:
+    command: define
+    name: "{{ hv.name }}"
+    xml: "{{ lookup('template', 'domain.xml.j2') }}"
+
+- name: Autostart and ensure domain is up and running
+  community.libvirt.virt:
+    name: "{{ hv.name }}"
+    autostart: true
+    state: running
+
+
+- name: Start libvirt domain
+  community.libvirt.virt:
+    autostart: true
+    name: "{{ hv.name }}"
+
+- name: Ensure domain is running 
+  community.libvirt.virt:
+    name: "{{ hv.name }}"
+    state: running
+
+- name: Wait for SSH on static IP on all VMs
+  wait_for:
+    host: "{{ hv.ip_cidr.split('/')[0] }}"
+    port: "{{ ssh_port }}"
+    timeout: "{{ ssh_wait_timeout }}"
+    state: started
+
