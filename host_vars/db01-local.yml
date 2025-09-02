@@ -10,3 +10,9 @@ vm:
   gateway: "192.168.122.1"
   dns_servers: ["192.168.122.1"]
   password: "Rocky_Balb0a" #normaly should be outside, e.g. ansible-vault 
+
+#os_config:
+#no specific values per machine, all in group_vars
+#
+
+

@@ -1,4 +1,14 @@
 ---
+#####
+# ansible/group_vars/db_local.yml
+# common variables and settings for all DB machines
+#
+
+####
+#1. VM and libvirt section
+####
+
+
 # virtualisation switch, default libvirtd
 target_virtualization: libvirt   # libvirt | vmware
 
@@ -48,4 +58,42 @@ vmw_template: "rocky-9"
 vmw_cpu: 2
 vmw_memory_mb: 2048
 vmw_additional_disk_gb: 2
+
+
+####
+#2. OS config - common attributes
+####
+
+os_config:
+  # tuned
+  tuned_profile: "virtual-guest"
+  sysctl:
+    vm.swappiness: 10
+    vm.dirty_background_ratio: 5
+    vm.dirty_ratio: 20
+
+  # LVM layout variables
+  lvm_device: "/dev/vdb"
+  pv_size: 2
+  vg_name: "vg_data"
+  lv_data_name: "lv_data_psql"
+  lv_wal_name: "lv_log_psql"
+  fstype: "xfs"
+  mnt_data: "/data"
+  mnt_wal: "/pgwal"
+  data_percent: 80
+  wal_percent: 20
+
+  # SELinux
+  manage_selinux: true
+  selinux_state: "disabled"
+
+  # limits
+  limits:
+    nofile_soft: 102400
+    nofile_hard: 1048576
+    nproc_soft: 4096
+    nproc_hard: 16384
+    memlock_soft: unlimited
+    memlock_hard: unlimited
 
