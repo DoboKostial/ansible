@@ -1,0 +1,43 @@
+---
+# Apply tuned profile if enabled
+- name: Set tuned profile
+  ansible.builtin.command: "tuned-adm profile {{ os_config.tuned_profile }}"
+  register: tuned_profile_set
+  changed_when: "'Already using profile' not in (tuned_profile_set.stdout | default(''))"
+  become: true
+  when: os_config.tuned_profile | length > 0
+  notify: restart tuned
+
+# Apply sysctl configuration if defined
+- name: Render sysctl config
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-os-config.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {% for k, v in os_config.sysctl.items() %}
+      {{ k }} = {{ v }}
+      {% endfor %}
+  become: true
+  when: os_config.sysctl | length > 0
+  notify: reload sysctl
+
+# Configure SELinux if requested
+- name: Manage SELinux state
+  ansible.posix.selinux:
+    policy: targeted
+    state: "{{ os_config.selinux_state }}"
+  become: true
+  when: os_config.manage_selinux | bool
+
+# Configure limits
+- name: Configure /etc/security/limits.d/os-limits.conf
+  ansible.builtin.template:
+    src: postgres-limits.conf.j2
+    dest: /etc/security/limits.d/os-limits.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+

@@ -1,0 +1,11 @@
+---
+# Entry point for the role
+- name: OS config | prerequisites
+  ansible.builtin.import_tasks: prereqs.yml
+
+- name: OS config | LVM layout
+  ansible.builtin.import_tasks: lvm.yml
+
+- name: OS config | OS tuning
+  ansible.builtin.import_tasks: os.yml
+

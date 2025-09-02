@@ -1,0 +1,13 @@
+---
+# Handlers triggered by changes when needed
+- name: reload sysctl
+  ansible.builtin.command: sysctl -p /etc/sysctl.d/99-os-config.conf
+  become: true
+
+- name: restart tuned
+  ansible.builtin.service:
+    name: tuned
+    state: restarted
+    enabled: true
+  become: true
+

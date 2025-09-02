@@ -1,0 +1,31 @@
+---
+# Default variables (can be overwritten in group_vars/host_vars)
+os_config:
+  tuned_profile: "virtual-guest"
+  sysctl: {}
+
+  # LVM layout
+  lvm_device: ""
+  pv_size: "20 GB"
+  vg_name: "vg_data"
+  lv_data_name: "lv_data_psql"
+  lv_wal_name: "lv_log_psql"
+  fstype: "xfs"
+  mnt_data: "/data"
+  mnt_wal: "/pgwal"
+  data_percent: 80
+  wal_percent: 20
+
+  # SELinux
+  manage_selinux: true
+  selinux_state: "disabled"
+
+  # User limits
+  limits:
+    nofile_soft: 102400
+    nofile_hard: 1048576
+    nproc_soft: 4096
+    nproc_hard: 16384
+    memlock_soft: unlimited
+    memlock_hard: unlimited
+

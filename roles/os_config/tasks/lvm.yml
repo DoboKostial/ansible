@@ -1,0 +1,114 @@
+---
+# tasks/lvm.yml
+# Assumption: os_config.pv_size is an integer (GB), e.g. 20
+
+# Sanity checks
+- name: Assert required LVM variables
+  ansible.builtin.assert:
+    that:
+      - os_config.lvm_device is defined
+      - os_config.lvm_device | length > 0
+      - os_config.pv_size is defined
+      - (os_config.pv_size | int) > 0
+      - os_config.vg_name | length > 0
+      - os_config.lv_data_name | length > 0
+      - os_config.lv_wal_name | length > 0
+      - (os_config.data_percent | int) > 0
+      - (os_config.wal_percent | int) > 0
+      - ((os_config.data_percent | int) + (os_config.wal_percent | int)) <= 100
+    fail_msg: "Missing or invalid os_config.* variables for LVM layout."
+
+# Build LVM size token (e.g. '20G')
+- name: Build PV size token
+  ansible.builtin.set_fact:
+    _pv_size: "{{ (os_config.pv_size | int) | string }}G"
+
+# Check if PV already exists
+- name: Check PV existence
+  ansible.builtin.command: "pvdisplay {{ os_config.lvm_device }}"
+  register: _pv_disp
+  changed_when: false
+  failed_when: false
+  become: true
+
+# Create PV (capped to os_config.pv_size GB)
+- name: Create PV (capped)
+  ansible.builtin.command: "pvcreate --yes --force --setphysicalvolumesize {{ _pv_size }} {{ os_config.lvm_device }}"
+  when: _pv_disp.rc != 0
+  become: true
+
+# Enforce PV cap (no-op if already correct)
+- name: Enforce PV size cap
+  ansible.builtin.command: "pvresize --setphysicalvolumesize {{ _pv_size }} {{ os_config.lvm_device }}"
+  changed_when: false
+  failed_when: false
+  become: true
+
+# Create/ensure VG
+- name: Create/ensure VG
+  community.general.lvg:
+    vg: "{{ os_config.vg_name }}"
+    pvs: "{{ os_config.lvm_device }}"
+    state: present
+  become: true
+
+# Create/ensure LVs by percentages
+- name: Create/ensure DATA LV
+  community.general.lvol:
+    vg: "{{ os_config.vg_name }}"
+    lv: "{{ os_config.lv_data_name }}"
+    size: "{{ os_config.data_percent }}%VG"
+    state: present
+  become: true
+
+- name: Create/ensure WAL LV
+  community.general.lvol:
+    vg: "{{ os_config.vg_name }}"
+    lv: "{{ os_config.lv_wal_name }}"
+    size: "{{ os_config.wal_percent }}%VG"
+    state: present
+  become: true
+
+# Filesystems
+- name: Create filesystem on DATA LV
+  community.general.filesystem:
+    fstype: "{{ os_config.fstype }}"
+    dev: "/dev/{{ os_config.vg_name }}/{{ os_config.lv_data_name }}"
+  become: true
+
+- name: Create filesystem on WAL LV
+  community.general.filesystem:
+    fstype: "{{ os_config.fstype }}"
+    dev: "/dev/{{ os_config.vg_name }}/{{ os_config.lv_wal_name }}"
+  become: true
+
+# Mount points
+- name: Ensure mount directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ os_config.mnt_data }}"
+    - "{{ os_config.mnt_wal }}"
+  become: true
+
+# Persistent mounts
+- name: Mount DATA LV
+  ansible.builtin.mount:
+    path: "{{ os_config.mnt_data }}"
+    src: "/dev/{{ os_config.vg_name }}/{{ os_config.lv_data_name }}"
+    fstype: "{{ os_config.fstype }}"
+    state: mounted
+    opts: noatime,nodiratime
+  become: true
+
+- name: Mount WAL LV
+  ansible.builtin.mount:
+    path: "{{ os_config.mnt_wal }}"
+    src: "/dev/{{ os_config.vg_name }}/{{ os_config.lv_wal_name }}"
+    fstype: "{{ os_config.fstype }}"
+    state: mounted
+    opts: noatime,nodiratime
+  become: true
+

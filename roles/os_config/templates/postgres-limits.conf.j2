@@ -1,0 +1,7 @@
+# Managed by Ansible (os_config)
+* soft nofile {{ os_config.limits.nofile_soft }}
+* hard nofile {{ os_config.limits.nofile_hard }}
+* soft nproc  {{ os_config.limits.nproc_soft }}
+* hard nproc  {{ os_config.limits.nproc_hard }}
+* soft memlock {{ os_config.limits.memlock_soft }}
+* hard memlock {{ os_config.limits.memlock_hard }}

@@ -1,0 +1,22 @@
+---
+#Prerequisities needed - e.g. Rocky linus has lvm but not lvm2 installed form cloud image
+
+# Ensure required packages are installed
+- name: Install required packages
+  ansible.builtin.package:
+    name:
+      - lvm2
+      - xfsprogs
+      - tuned
+      - util-linux
+    state: present
+  become: true
+
+# Ensure tuned service is enabled and running
+- name: Ensure tuned is running
+  ansible.builtin.service:
+    name: tuned
+    state: started
+    enabled: true
+  become: true
+
