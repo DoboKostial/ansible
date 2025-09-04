@@ -1,0 +1,19 @@
+---
+- name: Deploy postgresql.conf
+  template:
+    src: postgresql.conf-15.j2
+    dest: "{{ postgresql_data_directory }}/postgresql.conf"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+  notify: Restart PostgreSQL
+
+- name: Deploy pg_hba.conf
+  template:
+    src: pg_hba.conf.j2
+    dest: "{{ postgresql_hba_file }}"
+    owner: postgres
+    group: postgres
+    mode: "0600"
+  notify: Reload PostgreSQL
+

@@ -1,0 +1,7 @@
+---
+#installing and securing Postgresql cluster
+- hosts: db_local
+  become: yes
+  roles:
+    - role: postgresql
+

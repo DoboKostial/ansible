@@ -1,0 +1,32 @@
+---
+- name: Place WAL prune script
+  copy:
+    src: wal_prune.sh
+    dest: /usr/local/bin/wal_prune.sh
+    owner: root
+    group: root
+    mode: "0755"
+  when: wal_prune_enabled
+
+# Cron varianta běžící jako postgres (stejně jako dřív systemd service)
+# flock zajišťuje, že se job nepřekrývá
+- name: Ensure WAL prune cron for this cluster (postgres user)
+  cron:
+    name: "wal-prune-{{ postgresql_cluster_name }}"
+    user: postgres
+    minute: "{{ wal_prune_cron_minute }}"
+    hour: "{{ wal_prune_cron_hour }}"
+    day: "{{ wal_prune_cron_day }}"
+    month: "{{ wal_prune_cron_month }}"
+    weekday: "{{ wal_prune_cron_weekday }}"
+    job: "/usr/bin/flock -n /var/lock/wal-prune-{{ postgresql_cluster_name }}.lock /usr/local/bin/wal_prune.sh {{ postgresql_archive_dir }} {{ wal_prune_target_usage_pct }} {{ wal_prune_min_keep_hours }} >/dev/null 2>&1"
+    state: present
+  when: wal_prune_enabled
+
+- name: Remove WAL prune cron when disabled
+  cron:
+    name: "wal-prune-{{ postgresql_cluster_name }}"
+    user: postgres
+    state: absent
+  when: not wal_prune_enabled | default(true)
+

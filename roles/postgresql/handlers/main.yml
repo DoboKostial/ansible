@@ -1,0 +1,16 @@
+---
+- name: Reload PostgreSQL
+  systemd:
+    name: "{{ postgresql_service_name }}"
+    state: reloaded
+
+- name: Restart PostgreSQL
+  systemd:
+    name: "{{ postgresql_service_name }}"
+    state: restarted
+
+- name: Reload systemd
+  command: systemctl daemon-reload
+
+
+

@@ -1,11 +1,13 @@
+---
+# virtualisation parameters
 vm:
   name: "db01-local"
   hostname: "db01-local"
   mac: "52:54:00:ab:cd:11"
   vcpus: 2
-  memory_mb: 2048
+  memory_mb: 4096
   os_disk_gb: 10
-  data_disk_gb: 2
+  data_disk_gb: 20
   ip_cidr: "192.168.122.111/24"
   gateway: "192.168.122.1"
   dns_servers: ["192.168.122.1"]
@@ -15,4 +17,7 @@ vm:
 #no specific values per machine, all in group_vars
 #
 
+# postgresql specific values    
+postgresql_cluster_name: "db01-master"
+postgresql_port: 5432
 

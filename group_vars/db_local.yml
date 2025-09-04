@@ -97,3 +97,88 @@ os_config:
     memlock_soft: unlimited
     memlock_hard: unlimited
 
+
+
+####
+#3. Postgresql install variables
+####
+
+
+postgresql_version: 15
+postgresql_from_pgdg: true
+
+postgresql_data_directory: "/data/{{ postgresql_cluster_name }}"
+postgresql_wal_root: "/pgwal/{{ postgresql_cluster_name }}"
+postgresql_wal_directory: "{{ postgresql_wal_root }}/pg_wal"
+postgresql_archive_dir:  "{{ postgresql_wal_root }}/archive"
+
+postgresql_listen_addresses: ['*']
+postgresql_port: 5432
+
+# Locale/encoding
+postgresql_lc_messages: "en_US.UTF-8"
+postgresql_lc_monetary: "en_US.UTF-8"
+postgresql_lc_numeric:  "en_US.UTF-8"
+postgresql_lc_time:     "en_US.UTF-8"
+postgresql_client_encoding: "UTF8"
+
+# Auth and connection
+postgresql_password_encryption: "scram-sha-256"
+postgresql_max_connections: 50
+postgresql_superuser_reserved_connections: 5
+
+# SSL – soubory mimo PGDATA, pod /etc/ssl/postgresql/<cluster>/
+postgresql_ssl_dir: "/etc/ssl/postgresql/{{ postgresql_cluster_name }}"
+postgresql_ssl_cert_file: "{{ postgresql_ssl_dir }}/server.crt"
+postgresql_ssl_key_file:  "{{ postgresql_ssl_dir }}/server.key"
+
+# (volitelné, nech prázdné pokud nepoužíváš)
+postgresql_ssl_ca_file:   ""
+postgresql_ssl_crl_file:  ""
+postgresql_ssl_crl_dir:   ""
+
+#  SSL policy
+postgresql_ssl: "on"
+postgresql_ssl_min_protocol_version: "TLSv1.2"
+postgresql_ssl_prefer_server_ciphers: "on"
+
+
+# Logování
+postgresql_logging_collector: "on"
+postgresql_log_destination: "csvlog"
+postgresql_log_directory: "log"
+
+# WAL + checkpoint + archiv
+postgresql_wal_level: "replica"
+postgresql_archive_mode: "on"
+postgresql_archive_command: "test -f {{ postgresql_archive_dir }}/%f || cp %p {{ postgresql_archive_dir }}/%f"
+postgresql_archive_timeout: "0"
+postgresql_max_wal_size: "8GB"
+postgresql_min_wal_size: "1GB"
+postgresql_checkpoint_timeout: "15min"
+postgresql_checkpoint_completion_target: 0.9
+postgresql_wal_compression: "lz4"
+
+# Paměť auto
+postgresql_memory_autotune: false #(switch to true if tasks/memory_autotune wanted; rest shold be "auto")
+postgresql_shared_buffers: "1GB"
+postgresql_effective_cache_size: "2GB"
+postgresql_work_mem: "64MB"
+postgresql_maintenance_work_mem: "512MB"
+postgresql_autovacuum_work_mem: "128MB"
+postgresql_huge_pages: "try" #(be sure to get 'on' on PROD)
+
+# Security / public
+postgresql_revoke_public_create: true
+
+# WAL archiv cleanup via cron(60 % threshol)
+wal_prune_enabled: true
+wal_prune_target_usage_pct: 60
+wal_prune_min_keep_hours: 24
+
+# Cron schedule
+wal_prune_cron_minute: "0"
+wal_prune_cron_hour: "*/1"
+wal_prune_cron_day: "*"
+wal_prune_cron_month: "*"
+wal_prune_cron_weekday: "*"

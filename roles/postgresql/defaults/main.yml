@@ -1,0 +1,454 @@
+---
+#default params for postgresql install (low prioroty while default in role, 
+#desired values would be overweighted in group_vars/host_vars)
+
+#######################################################################
+# PostgreSQL role defaults – cover ALL vars used by postgresql.conf-15.j2
+# Safe baseline; override in group_vars/host_vars as needed.
+#######################################################################
+
+
+############################
+# BASIX
+############################
+
+postgresql_service_name: "postgresql-{{ postgresql_version }}"
+
+############################
+# FILE LOCATIONS
+############################
+postgresql_data_directory: "/data/{{ postgresql_cluster_name }}"
+postgresql_bin_dir: "/usr/pgsql-{{ postgresql_version }}/bin"
+postgresql_hba_file: "{{ postgresql_data_directory }}/pg_hba.conf"
+postgresql_ident_file: "{{ postgresql_data_directory }}/pg_ident.conf"
+postgresql_external_pid_file: "/run/postgresql/{{ postgresql_version }}-{{ postgresql_cluster_name }}.pid"
+
+############################
+# CONNECTIONS & AUTH
+############################
+# Connection settings
+postgresql_listen_addresses: ['localhost']     # or ['*']
+postgresql_port: 5432
+postgresql_max_connections: 100
+postgresql_superuser_reserved_connections: 3
+postgresql_unix_socket_directories: "/var/run/postgresql"
+postgresql_unix_socket_group: "postgres"
+postgresql_unix_socket_permissions: 0770
+postgresql_bonjour: "off"
+postgresql_bonjour_name: ""
+
+# TCP
+postgresql_tcp_keepalives_idle: 0
+postgresql_tcp_keepalives_interval: 0
+postgresql_tcp_keepalives_count: 0
+postgresql_tcp_user_timeout: 0
+postgresql_client_connection_check_interval: 0
+
+# Authentication
+postgresql_authentication_timeout: "1min"
+postgresql_password_encryption: "scram-sha-256"
+postgresql_db_user_namespace: "off"
+
+# GSSAPI / Kerberos
+postgresql_krb_server_keyfile: ""
+postgresql_krb_caseins_users: "off"
+
+############################
+# SSL
+############################
+postgresql_ssl: "on"
+postgresql_ssl_dir: "/etc/ssl/postgresql/{{ postgresql_cluster_name | default('main') }}"
+postgresql_ssl_cert_file: "{{ postgresql_ssl_dir }}/server.crt"
+postgresql_ssl_key_file:  "{{ postgresql_ssl_dir }}/server.key"
+postgresql_ssl_ca_file:   ""
+postgresql_ssl_crl_file:  ""
+postgresql_ssl_crl_dir:   ""
+postgresql_ssl_ciphers: "HIGH:!aNULL:!MD5"
+postgresql_ssl_prefer_server_ciphers: "on"
+postgresql_ssl_ecdh_curve: "prime256v1"
+postgresql_ssl_min_protocol_version: "TLSv1.2"
+postgresql_ssl_max_protocol_version: ""
+postgresql_ssl_dh_params_file: ""
+postgresql_ssl_passphrase_command: ""
+postgresql_ssl_passphrase_command_supports_reload: "off"
+
+############################
+# RESOURCE USAGE (except WAL)
+############################
+# Memory
+postgresql_shared_buffers: "256MB"
+postgresql_huge_pages: "try"      # on|off|try
+postgresql_huge_page_size: "0"    # 0 = system default
+postgresql_temp_buffers: "16MB"
+postgresql_max_prepared_transactions: 0
+postgresql_work_mem: "16MB"
+postgresql_hash_mem_multiplier: 1.0
+postgresql_maintenance_work_mem: "256MB"
+postgresql_autovacuum_work_mem: "128MB"
+postgresql_logical_decoding_work_mem: "64MB"
+postgresql_max_stack_depth: "4MB"
+postgresql_shared_memory_type: "mmap"
+postgresql_dynamic_shared_memory_type: "posix"
+postgresql_min_dynamic_shared_memory: 0
+postgresql_hugepages_restart_immediately: false
+
+# Disk
+postgresql_temp_file_limit: -1
+
+# Kernel resources
+postgresql_max_files_per_process: 1000
+
+# Cost-Based Vacuum Delay
+postgresql_vacuum_cost_delay: 0
+postgresql_vacuum_cost_page_hit: 1
+postgresql_vacuum_cost_page_miss: 2
+postgresql_vacuum_cost_page_dirty: 20
+postgresql_vacuum_cost_limit: 200
+
+# Background Writer
+postgresql_bgwriter_delay: "200ms"
+postgresql_bgwriter_lru_maxpages: 100
+postgresql_bgwriter_lru_multiplier: 2.0
+postgresql_bgwriter_flush_after: 0
+
+# Async behavior
+postgresql_backend_flush_after: 0
+postgresql_effective_io_concurrency: 200
+postgresql_maintenance_io_concurrency: 200
+postgresql_max_worker_processes: 8
+postgresql_max_parallel_workers_per_gather: 2
+postgresql_max_parallel_maintenance_workers: 2
+postgresql_max_parallel_workers: 8
+postgresql_parallel_leader_participation: "on"
+postgresql_old_snapshot_threshold: -1
+
+############################
+# WRITE-AHEAD LOG (WAL)
+############################
+# Settings
+postgresql_wal_root: "/pgwal/{{ postgresql_cluster_name }}"
+postgresql_wal_directory: "{{ postgresql_wal_root }}/pg_wal"
+postgresql_archive_dir: "{{ postgresql_wal_root }}/archive"
+postgresql_wal_level: "replica"
+postgresql_fsync: "on"
+postgresql_synchronous_commit: "on"
+postgresql_wal_sync_method: "fdatasync"
+postgresql_full_page_writes: "on"
+postgresql_wal_log_hints: "off"
+postgresql_wal_compression: "lz4"
+postgresql_wal_init_zero: "on"
+postgresql_wal_recycle: "on"
+postgresql_wal_buffers: -1
+postgresql_wal_writer_delay: "200ms"
+postgresql_wal_writer_flush_after: 128
+postgresql_wal_skip_threshold: "2MB"
+postgresql_commit_delay: 0
+postgresql_commit_siblings: 5
+
+# Checkpoints
+postgresql_checkpoint_timeout: "15min"
+postgresql_checkpoint_completion_target: 0.9
+postgresql_checkpoint_flush_after: 0
+postgresql_checkpoint_warning: 0
+postgresql_max_wal_size: "8GB"
+postgresql_min_wal_size: "1GB"
+
+# Prefetch during recovery
+postgresql_recovery_prefetch: "on"
+postgresql_wal_decode_buffer_size: "512kB"
+
+# Archiving
+postgresql_archive_mode: "off"          # NOTE: turn 'on' only when archive_command/library set
+postgresql_archive_library: ""
+postgresql_archive_command: ""
+postgresql_archive_timeout: 0
+
+# Archive Recovery
+postgresql_restore_command: ""
+postgresql_archive_cleanup_command: ""
+postgresql_recovery_end_command: ""
+
+# Recovery Target
+postgresql_recovery_target: ""               # keep commented in conf unless used
+postgresql_recovery_target_name: ""
+postgresql_recovery_target_time: ""
+postgresql_recovery_target_xid: ""
+postgresql_recovery_target_lsn: ""
+postgresql_recovery_target_inclusive: "on"
+postgresql_recovery_target_timeline: "current"
+postgresql_recovery_target_action: "pause"
+
+############################
+# REPLICATION
+############################
+# Sending servers
+postgresql_max_wal_senders: 10
+postgresql_max_replication_slots: 10
+postgresql_wal_keep_size: "0"
+postgresql_max_slot_wal_keep_size: -1
+postgresql_wal_sender_timeout: "60s"
+postgresql_track_commit_timestamp: "off"
+
+# Primary server
+postgresql_synchronous_standby_names: ""
+postgresql_vacuum_defer_cleanup_age: 0
+
+# Standby servers
+postgresql_primary_conninfo: ""
+postgresql_primary_slot_name: ""
+postgresql_promote_trigger_file: ""
+postgresql_hot_standby: "on"
+postgresql_max_standby_archive_delay: "30s"
+postgresql_max_standby_streaming_delay: "30s"
+postgresql_wal_receiver_create_temp_slot: "off"
+postgresql_wal_receiver_status_interval: "10s"
+postgresql_hot_standby_feedback: "off"
+postgresql_wal_receiver_timeout: "60s"
+postgresql_wal_retrieve_retry_interval: "5s"
+postgresql_recovery_min_apply_delay: "0"
+
+# Subscribers
+postgresql_max_logical_replication_workers: 4
+postgresql_max_sync_workers_per_subscription: 2
+
+############################
+# QUERY TUNING
+############################
+# Planner method toggles
+postgresql_enable_async_append: "on"
+postgresql_enable_bitmapscan: "on"
+postgresql_enable_gathermerge: "on"
+postgresql_enable_hashagg: "on"
+postgresql_enable_hashjoin: "on"
+postgresql_enable_incremental_sort: "on"
+postgresql_enable_indexscan: "on"
+postgresql_enable_indexonlyscan: "on"
+postgresql_enable_material: "on"
+postgresql_enable_memoize: "on"
+postgresql_enable_mergejoin: "on"
+postgresql_enable_nestloop: "on"
+postgresql_enable_parallel_append: "on"
+postgresql_enable_parallel_hash: "on"
+postgresql_enable_partition_pruning: "on"
+postgresql_enable_partitionwise_join: "on"
+postgresql_enable_partitionwise_aggregate: "on"
+postgresql_enable_seqscan: "on"
+postgresql_enable_sort: "on"
+postgresql_enable_tidscan: "on"
+
+# Planner cost constants
+postgresql_seq_page_cost: 1.0
+postgresql_random_page_cost: 4.0
+postgresql_cpu_tuple_cost: 0.01
+postgresql_cpu_index_tuple_cost: 0.005
+postgresql_cpu_operator_cost: 0.0025
+postgresql_parallel_setup_cost: 1000
+postgresql_parallel_tuple_cost: 0.1
+postgresql_min_parallel_table_scan_size: "8MB"
+postgresql_min_parallel_index_scan_size: "512kB"
+postgresql_effective_cache_size: "2GB"
+
+postgresql_jit_above_cost: 100000
+postgresql_jit_inline_above_cost: 500000
+postgresql_jit_optimize_above_cost: 500000
+
+# Genetic Query Optimizer
+postgresql_geqo: "on"
+postgresql_geqo_threshold: 12
+postgresql_geqo_effort: 5
+postgresql_geqo_pool_size: 0
+postgresql_geqo_generations: 0
+postgresql_geqo_selection_bias: 2.0
+postgresql_geqo_seed: 0.0
+
+# Other planner options
+postgresql_default_statistics_target: 100
+postgresql_constraint_exclusion: "partition"
+postgresql_cursor_tuple_fraction: 0.1
+postgresql_from_collapse_limit: 8
+postgresql_jit: "on"
+postgresql_join_collapse_limit: 8
+postgresql_plan_cache_mode: "auto"
+postgresql_recursive_worktable_factor: 10.0
+
+############################
+# REPORTING & LOGGING
+############################
+# Where to log
+postgresql_log_destination: "stderr"      # or "csvlog"
+postgresql_logging_collector: "off"       # turn on if using csvlog/jsonlog
+postgresql_log_directory: "log"
+postgresql_log_filename: "postgresql-%a.log"
+postgresql_log_file_mode: 0600
+postgresql_log_rotation_age: "1d"
+postgresql_log_rotation_size: 0
+postgresql_log_truncate_on_rotation: "off"
+
+# Syslog
+postgresql_syslog_facility: "LOCAL0"
+postgresql_syslog_ident: "postgres"
+postgresql_syslog_sequence_numbers: "on"
+postgresql_syslog_split_messages: "on"
+
+# Windows event source
+postgresql_event_source: "PostgreSQL"
+
+# When to log
+postgresql_log_min_messages: "warning"
+postgresql_log_min_error_statement: "error"
+postgresql_log_min_duration_statement: -1
+postgresql_log_min_duration_sample: -1
+postgresql_log_statement_sample_rate: 1.0
+postgresql_log_transaction_sample_rate: 0.0
+postgresql_log_startup_progress_interval: 0
+
+# What to log
+postgresql_debug_print_parse: "off"
+postgresql_debug_print_rewritten: "off"
+postgresql_debug_print_plan: "off"
+postgresql_debug_pretty_print: "on"
+postgresql_log_autovacuum_min_duration: -1
+postgresql_log_checkpoints: "off"
+postgresql_log_connections: "off"
+postgresql_log_disconnections: "off"
+postgresql_log_duration: "off"
+postgresql_log_error_verbosity: "default"
+postgresql_log_hostname: "off"
+postgresql_log_line_prefix: "%m [%p] %q%u@%d %r "
+postgresql_log_lock_waits: "off"
+postgresql_log_recovery_conflict_waits: "off"
+postgresql_log_parameter_max_length: -1
+postgresql_log_parameter_max_length_on_error: -1
+postgresql_log_statement: "none"          # none|ddl|mod|all
+postgresql_log_replication_commands: "off"
+postgresql_log_temp_files: -1
+postgresql_log_timezone: "UTC"
+
+############################
+# PROCESS TITLE
+############################
+postgresql_cluster_name: "{{ inventory_hostname | default('pg') }}"
+postgresql_update_process_title: "on"
+
+############################
+# STATISTICS
+############################
+# Cumulative stats
+postgresql_track_activities: "on"
+postgresql_track_activity_query_size: 1024
+postgresql_track_counts: "on"
+postgresql_track_io_timing: "off"
+postgresql_track_wal_io_timing: "off"
+postgresql_track_functions: "none"        # none|pl|all
+postgresql_stats_fetch_consistency: "none"
+
+# Monitoring
+postgresql_compute_query_id: "auto"
+postgresql_log_statement_stats: "off"
+postgresql_log_parser_stats: "off"
+postgresql_log_planner_stats: "off"
+postgresql_log_executor_stats: "off"
+
+############################
+# AUTOVACUUM
+############################
+postgresql_autovacuum: "on"
+postgresql_autovacuum_max_workers: 3
+postgresql_autovacuum_naptime: "1min"
+postgresql_autovacuum_vacuum_threshold: 50
+postgresql_autovacuum_vacuum_insert_threshold: 1000
+postgresql_autovacuum_analyze_threshold: 50
+postgresql_autovacuum_vacuum_scale_factor: 0.2
+postgresql_autovacuum_vacuum_insert_scale_factor: 0.2
+postgresql_autovacuum_analyze_scale_factor: 0.1
+postgresql_autovacuum_freeze_max_age: 200000000
+postgresql_autovacuum_multixact_freeze_max_age: 400000000
+postgresql_autovacuum_vacuum_cost_delay: -1
+postgresql_autovacuum_vacuum_cost_limit: -1
+
+############################
+# CLIENT CONNECTION DEFAULTS
+############################
+# Statement behavior
+postgresql_client_min_messages: "notice"
+postgresql_search_path: ['"$user"', 'public']
+postgresql_row_security: "on"
+postgresql_default_table_access_method: "heap"
+postgresql_default_tablespace: ""
+postgresql_default_toast_compression: "pglz"   # pglz|lz4
+postgresql_temp_tablespaces: ""
+postgresql_check_function_bodies: "on"
+postgresql_default_transaction_isolation: "read committed"
+postgresql_default_transaction_read_only: "off"
+postgresql_default_transaction_deferrable: "off"
+postgresql_session_replication_role: "origin"
+postgresql_statement_timeout: 0
+postgresql_lock_timeout: 0
+postgresql_idle_in_transaction_session_timeout: 0
+postgresql_idle_session_timeout: 0
+postgresql_vacuum_freeze_table_age: 150000000
+postgresql_vacuum_freeze_min_age: 50000000
+postgresql_vacuum_failsafe_age: 1600000000
+postgresql_vacuum_multixact_freeze_table_age: 150000000
+postgresql_vacuum_multixact_freeze_min_age: 5000000
+postgresql_vacuum_multixact_failsafe_age: 1600000000
+postgresql_bytea_output: "hex"
+postgresql_xmlbinary: "base64"
+postgresql_xmloption: "content"
+postgresql_gin_pending_list_limit: "4MB"
+postgresql_array_nulls: "on"                      # on|off
+postgresql_backslash_quote: "safe_encoding"       # on|off|safe_encoding
+postgresql_standard_conforming_strings: "on"      # on|off
+postgresql_quote_all_identifiers: "off"           # on|off
+postgresql_synchronize_seqscans: "on"             # on|off
+postgresql_transform_null_equals: "off"           # on|off
+postgresql_escape_string_warning: "on"
+postgresql_lo_compat_privileges: "off"        # on|off (legacy LOs; default: off)
+postgresql_operator_precedence_warning: "off"
+
+# Locale & formatting
+postgresql_datestyle: "iso, mdy"
+postgresql_intervalstyle: "postgres"
+postgresql_timezone: "UTC"
+postgresql_timezone_abbreviations: "Default"
+postgresql_extra_float_digits: 1
+postgresql_client_encoding: "UTF8"
+postgresql_lc_messages: "en_US.UTF-8"
+postgresql_lc_monetary: "en_US.UTF-8"
+postgresql_lc_numeric:  "en_US.UTF-8"
+postgresql_lc_time:     "en_US.UTF-8"
+postgresql_default_text_search_config: "pg_catalog.english"
+
+# Shared library preloading
+postgresql_local_preload_libraries: ""
+postgresql_session_preload_libraries: ""
+postgresql_shared_preload_libraries: []     # list, rendered comma-separated
+postgresql_jit_provider: "llvmjit"
+
+# Other defaults
+postgresql_dynamic_library_path: "$libdir"
+postgresql_gin_fuzzy_search_limit: 0
+
+############################
+# LOCK MANAGEMENT
+############################
+postgresql_deadlock_timeout: "1s"
+postgresql_max_locks_per_transaction: 64
+postgresql_max_pred_locks_per_transaction: 64
+postgresql_max_pred_locks_per_relation: -2
+postgresql_max_pred_locks_per_page: 2
+
+############################
+# ERROR HANDLING
+############################
+postgresql_exit_on_error: "off"
+postgresql_restart_after_crash: "on"
+postgresql_data_sync_retry: "off"
+postgresql_recovery_init_sync_method: "fsync"
+
+############################
+# CONFIG FILE INCLUDES
+############################
+postgresql_include_dir: "conf.d"
+postgresql_include_if_exists: ""   # eg.. "{{ postgresql_data_directory }}/override.conf"
+postgresql_include: ""

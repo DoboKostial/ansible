@@ -1,0 +1,69 @@
+---
+# roles/postgresql/tasks/hugepages.yml (náhrada předchozí logiky)
+
+- name: Configure hugepages from SHOW shared_buffers (only when wanted)
+  when: (postgresql_huge_pages | default('try')) | lower in ['on','try']
+  block:
+
+    - name: Get Hugepagesize (kB)
+      command: awk '/Hugepagesize:/ {print $2}' /proc/meminfo
+      register: _hp_kb
+      changed_when: false
+
+    - name: Read postmaster PID from external_pid_file
+      command: cat "{{ postgresql_external_pid_file }}"
+      register: _pg_pid
+      changed_when: false
+      failed_when: _pg_pid.rc != 0
+
+    - name: SHOW shared_buffers (returns like '128MB')
+      become_user: postgres
+      command: /usr/pgsql-15/bin/psql -Atc "show shared_buffers"
+      register: _sb
+      changed_when: false
+
+    - name: Normalize shared_buffers to bytes (shell, no cross-task deps)
+      shell: |
+        set -euo pipefail
+        SB="{{ _sb.stdout }}"
+        NUM=$(printf "%s" "$SB" | sed -E 's/^([0-9]+).*/\1/')
+        UNIT=$(printf "%s" "$SB" | sed -E 's/^[0-9]+(.*)$/\1/' | tr '[:upper:]' '[:lower:]')
+        case "$UNIT" in
+          *gb*|*g*) MULT=1073741824 ;;
+          *mb*|*m*|"") MULT=1048576 ;;   # PG často vrací MB
+          *kb*|*k*) MULT=1024 ;;
+          *b*) MULT=1 ;;
+          *) MULT=1048576 ;;
+        esac
+        echo $(( NUM * MULT ))
+      register: _sb_bytes
+      changed_when: false
+
+    - name: Compute required nr_hugepages (ceil + margin)
+      shell: |
+        set -euo pipefail
+        HP_BYTES=$(( {{ _hp_kb.stdout | int }} * 1024 ))
+        SB_BYTES={{ _sb_bytes.stdout | int }}
+        MARGIN={{ postgresql_hugepages_extra_margin | default(10) | int }}
+        echo $(( (SB_BYTES + HP_BYTES - 1) / HP_BYTES + MARGIN ))
+      register: _nr_hp
+      changed_when: false
+
+    - name: Apply vm.nr_hugepages persistently
+      sysctl:
+        name: vm.nr_hugepages
+        value: "{{ _nr_hp.stdout | int }}"
+        state: present
+        sysctl_file: /etc/sysctl.d/90-postgresql-hugepages.conf
+        reload: yes
+
+
+    - name: Queue PostgreSQL restart to take hugepages into use
+      command: /bin/true
+      when:
+        - _sysctl_hp is defined
+        - _sysctl_hp.changed
+        - (postgresql_huge_pages | default('try') | lower) == 'on'
+        - postgresql_hugepages_restart_immediately | default(false) | bool
+      notify: Restart PostgreSQL
+      changed_when: false

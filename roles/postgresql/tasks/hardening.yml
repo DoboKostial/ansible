@@ -1,0 +1,28 @@
+---
+# cleaner but requires psycopg library on target machine
+- name: Ensure psycopg2 present for Ansible PG modules
+  package:
+    name: python3-psycopg2
+    state: present
+      
+- name: Revoke CREATE on public schema (optional)
+  become_user: postgres
+  postgresql_query:
+    db: postgres
+    query: "REVOKE CREATE ON SCHEMA public FROM PUBLIC;"
+  when: postgresql_revoke_public_create
+
+#- name: Revoke CREATE on public schema (optional)
+#  become_user: postgres
+#  shell: >
+#    psql -v ON_ERROR_STOP=1 -d postgres
+#    -c "REVOKE CREATE ON SCHEMA public FROM PUBLIC;"
+#  when: postgresql_revoke_public_create | default(true)
+#  args:
+#    warn: false
+
+
+- name: Ensure password_encryption scram-sha-256 (already in conf)
+  debug:
+    msg: "password_encryption is {{ postgresql_password_encryption }}"
+

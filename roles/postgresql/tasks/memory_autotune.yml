@@ -1,0 +1,31 @@
+---
+# Spouštějeme jen pokud je autotune explicitně povolen
+- name: Memory autotune (only when enabled)
+  when: postgresql_memory_autotune | default(false) | bool
+  block:
+
+    - name: Get total memory (MB)
+      set_fact:
+        _mem_mb: "{{ (ansible_memtotal_mb | default(0)) | int }}"
+
+    # Celočíselná aritmetika + explicitní int konverze, žádné floaty
+    - name: Compute memory numbers (integer arithmetic)
+      set_fact:
+        _shared_buffers_mb: "{{ [ (((_mem_mb | int) * 25) // 100), 8192 ] | min }}"
+        _effective_cache_mb: "{{ ((_mem_mb | int) * 70) // 100 }}"
+        _maint_mb: "{{ [ (((_mem_mb | int) * 5) // 100), 2048 ] | min }}"
+        _wm_den: "{{ [ ((((postgresql_max_connections | default(200)) | int) * 2)), 1 ] | max }}"
+        _work_mem_mb: "{{ [ (((_effective_cache_mb | int) // (_wm_den | int))), 64 ] | min }}"
+
+    # Aplikuj jen na hodnoty, které jsou 'auto'
+    - name: Apply computed memory when auto
+      set_fact:
+        postgresql_shared_buffers: >-
+          {{ _shared_buffers_mb ~ 'MB' if (postgresql_shared_buffers | default('auto')) == 'auto' else postgresql_shared_buffers }}
+        postgresql_effective_cache_size: >-
+          {{ _effective_cache_mb ~ 'MB' if (postgresql_effective_cache_size | default('auto')) == 'auto' else postgresql_effective_cache_size }}
+        postgresql_maintenance_work_mem: >-
+          {{ _maint_mb ~ 'MB' if (postgresql_maintenance_work_mem | default('auto')) == 'auto' else postgresql_maintenance_work_mem }}
+        postgresql_work_mem: >-
+          {{ _work_mem_mb ~ 'MB' if (postgresql_work_mem | default('auto')) == 'auto' else postgresql_work_mem }}
+

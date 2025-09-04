@@ -1,0 +1,20 @@
+---
+- name: Initdb if PG not initialized (Rocky 9)
+  become_user: postgres
+  command: >
+    /usr/pgsql-15/bin/initdb
+    -D {{ postgresql_data_directory }}
+    --encoding=UTF8
+    --locale=en_US.UTF-8
+    --waldir={{ postgresql_wal_directory }}
+  args:
+    creates: "{{ postgresql_data_directory }}/PG_VERSION"
+
+- name: Ensure archive dir exists & owned
+  file:
+    path: "{{ postgresql_archive_dir }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0700"
+

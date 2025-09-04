@@ -1,0 +1,69 @@
+---
+# ---- PGDATA override for systemd ----
+- name: Create systemd drop-in dir for PGDATA override
+  file:
+    path: "/etc/systemd/system/{{ postgresql_service_name }}.service.d"
+    state: directory
+    mode: "0755"
+
+- name: Set PGDATA via systemd drop-in
+  copy:
+    dest: "/etc/systemd/system/{{ postgresql_service_name }}.service.d/override.conf"
+    mode: "0644"
+    content: |
+      [Service]
+      Environment=PGDATA={{ postgresql_data_directory }}
+
+# Okamžitě načti změny unitů (nečekej na handler)
+- name: systemd daemon-reload (immediate)
+  systemd:
+    daemon_reload: true
+
+# Alternativně/duplicitně nastav i přes sysconfig (unit mívá EnvironmentFile=-/etc/sysconfig/pgsql/postgresql-15)
+- name: Ensure /etc/sysconfig/pgsql exists
+  file:
+    path: /etc/sysconfig/pgsql
+    state: directory
+    mode: "0755"
+
+- name: Set PGDATA via /etc/sysconfig (belt & suspenders)
+  copy:
+    dest: "/etc/sysconfig/pgsql/{{ postgresql_service_name }}"
+    mode: "0644"
+    content: |
+      PGDATA={{ postgresql_data_directory }}
+
+# Socket directory(e) musí existovat
+- name: Ensure unix_socket_directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "{{ postgresql_unix_socket_permissions }}"
+  loop: "{{ (postgresql_unix_socket_directories | string).split(',') | map('trim') | list }}"
+
+# Start s reloadem pro jistotu
+- name: Enable & start PostgreSQL
+  systemd:
+    name: "{{ postgresql_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Determine primary socket dir
+  set_fact:
+    _pg_socket_dir: "{{ (postgresql_unix_socket_directories | string).split(',')[0] | trim | default('/var/run/postgresql') }}"
+
+- name: Wait until PostgreSQL is ready
+  become_user: postgres
+  command: >
+    {{ postgresql_bin_dir }}/pg_isready -q
+    -p {{ postgresql_port | default(5432) }}
+    -h {{ _pg_socket_dir }}
+  register: _pg_ready
+  retries: 20
+  delay: 3
+  until: _pg_ready.rc == 0
+  changed_when: false
+

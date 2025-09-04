@@ -1,0 +1,21 @@
+---
+- name: Ensure packages (Rocky 9)
+  package:
+    name:
+      - postgresql15
+      - postgresql15-server
+      - openssl
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Create PG root dirs (data, wal root, archive)
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "{{ item.mode | default('0700') }}"
+  loop:
+    - { path: "{{ postgresql_data_directory }}" }
+    - { path: "{{ postgresql_wal_root }}" }     # only root, no {{ postgresql_wal_directory }}
+    - { path: "{{ postgresql_archive_dir }}" }

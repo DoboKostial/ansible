@@ -1,0 +1,22 @@
+---
+#- import_tasks: repo.yml
+#- import_tasks: install.yml
+#- import_tasks: memory_autotune.yml
+#- import_tasks: initdb.yml
+#- import_tasks: ssl.yml
+#- import_tasks: config.yml
+#- import_tasks: hugepages.yml #before service!
+#- import_tasks: service.yml
+#- import_tasks: hardening.yml
+#- import_tasks: wal_cleanup.yml
+
+- import_tasks: repo.yml
+- import_tasks: install.yml
+- import_tasks: memory_autotune.yml
+- import_tasks: initdb.yml
+- import_tasks: ssl.yml
+- import_tasks: config.yml
+- import_tasks: service.yml        # start & pg_isready
+- import_tasks: hugepages.yml      # výpočet HP po startu
+- import_tasks: hardening.yml
+- import_tasks: wal_cleanup.yml

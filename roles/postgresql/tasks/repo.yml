@@ -1,0 +1,34 @@
+---
+# This is for specific Rocky 9 instalation
+# 3 should be enhanced for various versions and Debian/Ubuntu linux by adding the swith 'OS family'
+# repo is public but in PROD scenario I suppose local mirrors
+#
+
+- name: Clean dnf metadata
+  command: dnf clean all
+  changed_when: false
+
+- name: PGDG | Import GPG key
+  rpm_key:
+    state: present
+    key: https://ftp.postgresql.org/pub/repos/yum/keys/PGDG-RPM-GPG-KEY-RHEL
+  when:
+    - postgresql_from_pgdg
+    - ansible_os_family == "RedHat"
+
+- name: PGDG | Add repo (Rocky 9)
+  yum:
+    name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+    state: present
+  when:
+    - postgresql_from_pgdg
+    - ansible_os_family == "RedHat"
+
+
+#- name: PGDG | Disable stock module (Rocky 9)
+  #command: dnf -y module disable postgresql
+    #args: { warn: false }
+    #when:
+      #- postgresql_from_pgdg
+      #- ansible_os_family == "RedHat"
+
