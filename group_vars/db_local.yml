@@ -4,9 +4,9 @@
 # common variables and settings for all DB machines
 #
 
-####
+############################
 #1. VM and libvirt section
-####
+############################
 
 
 # virtualisation switch, default libvirtd
@@ -60,9 +60,11 @@ vmw_memory_mb: 2048
 vmw_additional_disk_gb: 2
 
 
-####
+
+
+##################################
 #2. OS config - common attributes
-####
+##################################
 
 os_config:
   # tuned
@@ -99,9 +101,9 @@ os_config:
 
 
 
-####
-#3. Postgresql install variables
-####
+################################
+#3. Postgresql install and config variables
+################################
 
 
 postgresql_version: 15
@@ -182,3 +184,14 @@ wal_prune_cron_hour: "*/1"
 wal_prune_cron_day: "*"
 wal_prune_cron_month: "*"
 wal_prune_cron_weekday: "*"
+
+
+
+
+################################
+# 4. Replication role variables
+# ##############################
+
+replication_user: replicator
+replication_password: "Replikace_123" # ! normally should go to ansible-vault
+replication_sslmode: require    # "encrypted with SSL"

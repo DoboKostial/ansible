@@ -1,0 +1,45 @@
+# --- Core PG context (aligned with your DB role) ---
+postgresql_service_name: "postgresql-{{ postgresql_version }}"
+postgresql_bin_dir: "/usr/pgsql-{{ postgresql_version }}/bin"
+postgresql_data_directory: "/data/{{ postgresql_cluster_name }}"
+postgresql_hba_file: "{{ postgresql_data_directory }}/pg_hba.conf"
+postgresql_ident_file: "{{ postgresql_data_directory }}/pg_ident.conf"
+postgresql_external_pid_file: "/run/postgresql/{{ postgresql_version }}-{{ postgresql_cluster_name }}.pid"
+
+
+# postgres system user/home (for .pgpass on standby)
+postgresql_system_user: postgres
+postgresql_system_user_home: "/var/lib/pgsql"
+
+# certs
+postgresql_ssl_cert_file: "/etc/ssl/postgresql/{{ postgresql_cluster_name }}/server.crt"
+postgresql_ssl_key_file:  "/etc/ssl/postgresql/{{ postgresql_cluster_name }}/server.key"
+
+
+# --- What this host does in replication ---
+# Must be 'primary' or 'standby'
+replication_role: null
+
+# --- Common replication settings ---
+replication_user: "replicator"
+replication_password: ""           # put real secret in group_vars (Vault)
+replication_slot: "slot_{{ inventory_hostname | regex_replace('[^a-zA-Z0-9_]+','_') }}"
+replication_application_name: "{{ inventory_hostname }}"
+
+# On standby: where to connect
+replication_primary_host: ""       # e.g. "db01-local" or IP
+replication_primary_port: "{{ postgresql_port }}"
+
+# TLS for replication client (standby -> primary)
+replication_sslmode: "require"     # "require" | "verify-ca" | "verify-full"
+replication_sslrootcert: ""        # absolute path on standby, e.g. "/etc/ssl/certs/pg-primary-ca.pem"
+# optionally copy CA onto standby:
+replication_sslrootcert_src: ""    # local src or template-managed path; empty = don't copy
+
+# Primary-side pg_hba entries for standby(s)
+# example: ['192.168.122.112/32']
+replication_hba_cidrs: []
+
+# Re-init flag for standby (danger: wipes PGDATA before basebackup)
+replication_reinit: false
+

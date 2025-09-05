@@ -1,0 +1,15 @@
+---
+- name: Sanity check replication_role
+  assert:
+    that:
+      - replication_role in ['primary', 'standby']
+    fail_msg: "replication_role must be 'primary' or 'standby'"
+
+- name: Include primary tasks
+  when: replication_role == 'primary'
+  import_tasks: primary.yml
+
+- name: Include standby tasks
+  when: replication_role == 'standby'
+  import_tasks: standby.yml
+

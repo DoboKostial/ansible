@@ -23,3 +23,8 @@ vm:
 postgresql_cluster_name: "db02-replica"
 postgresql_port: 5432
 
+# postgresql replication variables
+replication_role: standby
+replication_primary_host: "192.168.122.111"  # db01-local
+replication_primary_port: 5432
+replication_slot: "slot_db02"

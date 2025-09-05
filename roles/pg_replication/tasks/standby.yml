@@ -1,0 +1,285 @@
+---
+# 0) Optional: place CA on standby if verify-ca/full is configured
+- name: Copy replication CA (sslrootcert) to standby
+  copy:
+    src: "{{ replication_sslrootcert_src }}"
+    dest: "{{ replication_sslrootcert }}"
+    owner: "{{ postgresql_system_user }}"
+    group: "{{ postgresql_system_user }}"
+    mode: "0644"
+  when:
+    - replication_sslrootcert_src | length > 0
+    - replication_sslrootcert | length > 0
+
+# 1) Ensure .pgpass for postgres (passwordless pg_basebackup)
+- name: Ensure postgres home exists
+  file:
+    path: "{{ postgresql_system_user_home }}"
+    state: directory
+    owner: "{{ postgresql_system_user }}"
+    group: "{{ postgresql_system_user }}"
+    mode: "0750"
+
+- name: Write .pgpass for replication
+  no_log: true
+  copy:
+    dest: "{{ postgresql_system_user_home }}/.pgpass"
+    owner: "{{ postgresql_system_user }}"
+    group: "{{ postgresql_system_user }}"
+    mode: "0600"
+    content: |
+      {{ replication_primary_host }}:{{ replication_primary_port }}:*:{{ replication_user }}:{{ replication_password }}
+  when: replication_password | length > 0
+
+# 2) Stop service before (re)init
+- name: Stop PostgreSQL (standby)
+  systemd:
+    name: "{{ postgresql_service_name }}"
+    state: stopped
+  failed_when: false
+  changed_when: false
+
+# 3) Detect if already a standby (standby.signal present)
+- name: Check standby.signal
+  stat:
+    path: "{{ postgresql_data_directory }}/standby.signal"
+  register: _standby_signal
+
+# 4) (Re)init with pg_basebackup if needed
+- name: Remove existing PGDATA for reinit
+  file:
+    path: "{{ postgresql_data_directory }}"
+    state: absent
+  when:
+    - replication_reinit | bool
+    - _standby_signal.stat.exists | default(false)
+
+- name: Ensure PGDATA dir exists (empty)
+  file:
+    path: "{{ postgresql_data_directory }}"
+    state: directory
+    owner: "{{ postgresql_system_user }}"
+    group: "{{ postgresql_system_user }}"
+    mode: "0700"
+
+- name: Run pg_basebackup from primary (no -R; we will write config explicitly)
+  become_user: "{{ postgresql_system_user }}"
+  environment:
+    PGPASSFILE: "{{ postgresql_system_user_home }}/.pgpass"
+  shell: |
+    set -euo pipefail
+    if [ ! -f "{{ postgresql_data_directory }}/standby.signal" ] || {{ 'true' if replication_reinit | bool else 'false' }}; then
+      rm -rf "{{ postgresql_data_directory }}"/*
+      "{{ postgresql_bin_dir }}"/pg_basebackup \
+        -D "{{ postgresql_data_directory }}" \
+        -X stream \
+        -h "{{ replication_primary_host }}" \
+        -p "{{ replication_primary_port }}" \
+        -U "{{ replication_user }}" \
+        --no-password
+      : > "{{ postgresql_data_directory }}/standby.signal"
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+# 4b) Reset postgresql.auto.conf (drop any ALTER SYSTEM junk from primary)
+- name: Remove postgresql.auto.conf carried from primary
+  file:
+    path: "{{ postgresql_data_directory }}/postgresql.auto.conf"
+    state: absent
+
+- name: Build primary_conninfo string
+  set_fact:
+    _repl_conninfo: >-
+      host={{ replication_primary_host }}
+      port={{ replication_primary_port }}
+      user={{ replication_user }}
+      application_name={{ replication_application_name }}
+      sslmode={{ replication_sslmode }}{% if replication_sslrootcert|length>0 %} sslrootcert={{ replication_sslrootcert }}{% endif %}
+
+- name: Write fresh postgresql.auto.conf with replication settings only
+  copy:
+    dest: "{{ postgresql_data_directory }}/postgresql.auto.conf"
+    owner: "{{ postgresql_system_user }}"
+    group: "{{ postgresql_system_user }}"
+    mode: "0600"
+    content: |
+      primary_conninfo = '{{ _repl_conninfo }}'
+      primary_slot_name = '{{ replication_slot }}'
+
+# 4c) Normalize all *.conf under PGDATA (remove data_directory & old absolute paths)
+- name: Collect all *.conf files under PGDATA
+  find:
+    paths: "{{ postgresql_data_directory }}"
+    patterns: "*.conf"
+    file_type: file
+  register: _pg_conf_files
+
+- name: Comment out any data_directory lines in confs
+  replace:
+    path: "{{ item.path }}"
+    regexp: '^[ \t]*data_directory[ \t]*=.*$'
+    replace: '# data_directory disabled on standby (managed via PGDATA/systemd)'
+  loop: "{{ _pg_conf_files.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  ignore_errors: true
+
+- name: Rewrite any absolute /data/db01-master paths to this PGDATA (safety)
+  replace:
+    path: "{{ item.path }}"
+    regexp: "/data/db01-master"
+    replace: "{{ postgresql_data_directory }}"
+  loop: "{{ _pg_conf_files.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  ignore_errors: true
+
+# 4d) Ensure hba_file/ident_file point to this cluster (or rely on defaults)
+- name: Ensure hba_file points to this cluster
+  lineinfile:
+    path: "{{ postgresql_data_directory }}/postgresql.conf"
+    regexp: '^[ \t]*hba_file[ \t]*='
+    line: "hba_file = '{{ (postgresql_hba_file | default(postgresql_data_directory ~ '/pg_hba.conf')) }}'"
+    insertafter: EOF
+
+- name: Ensure ident_file points to this cluster
+  lineinfile:
+    path: "{{ postgresql_data_directory }}/postgresql.conf"
+    regexp: '^[ \t]*ident_file[ \t]*='
+    line: "ident_file = '{{ (postgresql_ident_file | default(postgresql_data_directory ~ '/pg_ident.conf')) }}'"
+    insertafter: EOF
+
+# 4e) Assert no data_directory remains anywhere
+- name: Assert there is no data_directory left in any conf
+  shell: "grep -RIn '^[[:space:]]*data_directory[[:space:]]*=' {{ postgresql_data_directory }} || true"
+  register: _dd_left
+  changed_when: false
+
+- name: Fail if any data_directory remnants found
+  assert:
+    that:
+      - _dd_left.stdout.strip() == ""
+    fail_msg: |
+      Found data_directory lines in config after normalization:
+      {{ _dd_left.stdout }}
+
+# Ensure systemd uses the right PGDATA on standby
+- name: Create systemd drop-in dir
+  file:
+    path: "/etc/systemd/system/{{ postgresql_service_name }}.service.d"
+    state: directory
+    mode: "0755"
+
+- name: Set PGDATA via systemd drop-in (standby)
+  copy:
+    dest: "/etc/systemd/system/{{ postgresql_service_name }}.service.d/override.conf"
+    mode: "0644"
+    content: |
+      [Service]
+      Environment=PGDATA={{ postgresql_data_directory }}
+
+- name: systemd daemon-reload (pick up PGDATA change)
+  systemd:
+    daemon_reload: true
+
+# (Optional) assert systemd sees the right PGDATA
+- name: Check effective PGDATA in systemd env
+  command: "systemctl show {{ postgresql_service_name }} -p Environment"
+  register: _env_show
+  changed_when: false
+
+- name: Assert effective PGDATA matches our value
+  assert:
+    that:
+      - "'PGDATA={{ postgresql_data_directory }}' in _env_show.stdout"
+    fail_msg: |
+      systemd Environment does not contain expected PGDATA.
+      systemctl show output:
+      {{ _env_show.stdout }}
+
+# 4f) Ensure server SSL exists on standby (generate self-signed if missing)
+- name: Derive SSL paths with sane defaults
+  set_fact:
+    _ssl_cert: "{{ postgresql_ssl_cert_file | default('/etc/ssl/postgresql/' ~ postgresql_cluster_name ~ '/server.crt') }}"
+    _ssl_key:  "{{ postgresql_ssl_key_file  | default('/etc/ssl/postgresql/' ~ postgresql_cluster_name ~ '/server.key') }}"
+
+- name: Ensure SSL directory exists (standby)
+  file:
+    path: "{{ _ssl_cert | dirname }}"
+    state: directory
+    owner: "{{ postgresql_system_user }}"
+    group: "{{ postgresql_system_user }}"
+    mode: "0750"
+
+- name: Stat SSL files
+  stat:
+    path: "{{ _ssl_cert }}"
+  register: _cert_stat
+
+- name: Stat SSL key
+  stat:
+    path: "{{ _ssl_key }}"
+  register: _key_stat
+
+- name: Generate self-signed server key/cert on standby if missing
+  become_user: "{{ postgresql_system_user }}"
+  when: (not _cert_stat.stat.exists) or (not _key_stat.stat.exists)
+  shell: |
+    set -euo pipefail
+    openssl req -x509 -nodes -newkey rsa:4096 -sha256 -days 825 \
+      -keyout "{{ _ssl_key }}" -out "{{ _ssl_cert }}" \
+      -subj "/CN={{ inventory_hostname }}" \
+      -addext "subjectAltName=DNS:{{ inventory_hostname }}{% if ansible_default_ipv4 is defined and ansible_default_ipv4.address is defined %},IP:{{ ansible_default_ipv4.address }}{% endif %}"
+
+- name: Fix ownership and permissions on SSL key/cert
+  file:
+    path: "{{ item.path }}"
+    owner: "{{ postgresql_system_user }}"
+    group: "{{ postgresql_system_user }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ _ssl_key }}",  mode: "0600" }
+    - { path: "{{ _ssl_cert }}", mode: "0644" }
+
+# Zapiš do postgresql.conf, ať Postgres skutečně použije tyto cesty
+- name: Ensure ssl=on and ssl_cert/key paths in postgresql.conf (standby)
+  lineinfile:
+    path: "{{ postgresql_data_directory }}/postgresql.conf"
+    regexp: "{{ item.re }}"
+    line: "{{ item.line }}"
+    insertafter: EOF
+  loop:
+    - { re: '^[ \t]*ssl[ \t]*=',                line: "ssl = on" }
+    - { re: '^[ \t]*ssl_cert_file[ \t]*=',      line: "ssl_cert_file = '{{ _ssl_cert }}'" }
+    - { re: '^[ \t]*ssl_key_file[ \t]*=',       line: "ssl_key_file  = '{{ _ssl_key }}'" }
+
+
+# 6) Start standby & wait
+- name: Start PostgreSQL (standby)
+  systemd:
+    name: "{{ postgresql_service_name }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Wait for walreceiver to connect (pg_isready)
+  become_user: "{{ postgresql_system_user }}"
+  command: >
+    {{ postgresql_bin_dir }}/pg_isready -q -p {{ postgresql_port }}
+  register: _pg_ready
+  retries: 20
+  delay: 3
+  until: _pg_ready.rc == 0
+  changed_when: false
+
+# 7) (Optional) quick check
+- name: Show walreceiver status (debug)
+  become_user: "{{ postgresql_system_user }}"
+  command: >
+    {{ postgresql_bin_dir }}/psql -Atc "SELECT status FROM pg_stat_wal_receiver;"
+  register: _walrx
+  changed_when: false
+  failed_when: false
+

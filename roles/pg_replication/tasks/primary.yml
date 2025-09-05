@@ -1,0 +1,67 @@
+---
+# roles/pg_replication/tasks/primary.yml
+
+# Pick the first UNIX socket dir (modules will connect via socket)
+- name: Derive primary unix socket dir
+  set_fact:
+    _pg_socket_dir: "{{ (postgresql_unix_socket_directories | default('/var/run/postgresql') | string).split(',')[0] | trim }}"
+
+# Make sure the server is up before using modules
+- name: Wait until PostgreSQL is ready (socket)
+  become_user: "{{ postgresql_system_user | default('postgres') }}"
+  command: >
+    {{ postgresql_bin_dir }}/pg_isready -q
+    -h {{ _pg_socket_dir }}
+    -p {{ postgresql_port }}
+  register: _pg_ready
+  retries: 20
+  delay: 3
+  until: _pg_ready.rc == 0
+  changed_when: false
+
+# Replication role (LOGIN, REPLICATION) — idempotent
+- name: Ensure replication role exists (LOGIN, REPLICATION)
+  become_user: "{{ postgresql_system_user | default('postgres') }}"
+  community.postgresql.postgresql_user:
+    name: "{{ replication_user }}"
+    # only set password if provided; otherwise leave as-is
+    password: "{{ replication_password | default(omit) }}"
+    role_attr_flags: "LOGIN,REPLICATION"
+    state: present
+    login_user: postgres
+    login_unix_socket: "{{ _pg_socket_dir }}"
+    port: "{{ postgresql_port }}"
+    db: postgres
+  no_log: "{{ (replication_password is defined) and (replication_password | length > 0) }}"
+
+# TLS-only replication access for allowed CIDRs
+- name: Ensure pg_hba has hostssl entries for replication
+  when: replication_hba_cidrs is defined and replication_hba_cidrs | length > 0
+  blockinfile:
+    path: "{{ postgresql_hba_file }}"
+    marker: "# {mark} ANSIBLE MANAGED: replication access"
+    block: |
+      {% for cidr in replication_hba_cidrs %}
+      hostssl  replication  {{ replication_user }}  {{ cidr }}  scram-sha-256
+      {% endfor %}
+    create: yes
+    owner: "{{ postgresql_system_user | default('postgres') }}"
+    group: "{{ postgresql_system_user | default('postgres') }}"
+    mode: "0600"
+
+- name: Reload PostgreSQL config (apply pg_hba changes)
+  become_user: "{{ postgresql_system_user | default('postgres') }}"
+  command: "{{ postgresql_bin_dir }}/psql -Atc 'SELECT pg_reload_conf();'"
+  changed_when: false
+
+# Physical replication slot — idempotent
+- name: Ensure physical replication slot present
+  become_user: "{{ postgresql_system_user | default('postgres') }}"
+  community.postgresql.postgresql_slot:
+    name: "{{ replication_slot }}"
+    db: postgres
+    state: present
+    login_user: postgres
+    login_unix_socket: "{{ _pg_socket_dir }}"
+    port: "{{ postgresql_port }}"
+

@@ -21,3 +21,7 @@ vm:
 postgresql_cluster_name: "db01-master"
 postgresql_port: 5432
 
+# postgresql replication variables
+replication_role: primary
+replication_hba_cidrs:
+  - "192.168.122.112/32"   # db02-local
