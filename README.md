@@ -31,8 +31,8 @@ If You prefer to call roles directly, use role wrapper 'ansible-role', e.g.:
 
 
 # Properties & description of ansible roles
-## 1. VMs and virtualisation
-## (role vm_deployment)
+
+## 1. VMs and virtualisation (role vm_deployment)
 
 This role sets up desired virtualisation cluster and deploys VMs with Rocky Linux 9 OS. Currently libvirtd/KVM option fully functional, Vcenter/VMware under construction.
 - creates libvirt pool (domain) according HW specs in group_vars/host_vars, downloads OS image
@@ -40,8 +40,7 @@ This role sets up desired virtualisation cluster and deploys VMs with Rocky Linu
 -- rocky (for standard SSH tets login)
 -- ansible_master (for further ansible driven management from ansible control node)
 
-## 2. OS configuration
-## (role os_config)
+## 2. OS configuration (role os_config)
 
 This Ansible role prepares a Linux host for database-style workloads by:
 - creating an LVM layout on a dedicated disk (no partitioning): a capped Physical Volume, a single VG, and two LVs split by percentages (e.g., 80/20).
@@ -55,8 +54,7 @@ This Ansible role prepares a Linux host for database-style workloads by:
 - Re-running: The role is idempotent, but it will not shrink existing filesystems or reshape LVs automatically; adjust vars carefully if changing layout on a live system.
 
 
-## 3. Postgresql instalation and configuration
-## (role postgresql)
+## 3. Postgresql instalation and configuration (role postgresql)
 
 Installs and configures target version PostgreSQL  on Rocky Linux 9.
 
@@ -68,8 +66,7 @@ Installs and configures target version PostgreSQL  on Rocky Linux 9.
 - pg_hba.conf baseline: local peer for postgres, SCRAM elsewhere
 - hardening: reomve public access to public schemas
 
-## 4. PostgreSQL replication
-## (pg_replication role)
+## 4. PostgreSQL replication (pg_replication role)
 A minimal, robust role that configures physical streaming replication between two PostgreSQL  nodes with encrypted traffic (TLS).
 Designed to work with previous role (service, PGDG packages, ssl=on, etc.).
 - ensures a replication role exists (LOGIN REPLICATION, optional password).
