@@ -1,15 +1,15 @@
-#Requirements#
+#Requirements
 Requires working ansible infrastructure and package management
-##Ansible##
-Either You have ansible-galaxy or some minimalistic deployment (ansible-core), be sure to meet requirements defined in collections/requirements.yml
-`ansible-galaxy collection install -r collections/requirements.yml`
-##Packages##
+##Ansible
+Either You have ansible-galaxy or some minimalistic deployment (ansible-core), be sure to meet requirements defined in collections/requirements.yml 
+```ansible-galaxy collection install -r collections/requirements.yml
+
+##Packages
 This stack uses publc repos & packages to install required software
 
-
-#Properties description#
-##1. VMs and virtualisation##
-##(role vm_deployment)##
+#Properties description
+##1. VMs and virtualisation
+##(role vm_deployment)
 
 This role sets up desired virtualisation cluster and deploys VMs with Rocky Linux 9 OS. Currently libvirtd/KVM option fully functional, Vcenter/VMware under construction.
 - creates libvirt pool (domain) according HW specs in group_vars/host_vars, downloads OS image
@@ -17,8 +17,8 @@ This role sets up desired virtualisation cluster and deploys VMs with Rocky Linu
 -- rocky (for standard SSH tets login)
 -- ansible_master (for further ansible driven management from ansible control node)
 
-##2. OS configuration##
-##(role os_config)##
+##2. OS configuration
+##(role os_config)
 
 This Ansible role prepares a Linux host for database-style workloads by:
 - creating an LVM layout on a dedicated disk (no partitioning): a capped Physical Volume, a single VG, and two LVs split by percentages (e.g., 80/20).
@@ -32,8 +32,8 @@ This Ansible role prepares a Linux host for database-style workloads by:
 - Re-running: The role is idempotent, but it will not shrink existing filesystems or reshape LVs automatically; adjust vars carefully if changing layout on a live system.
 
 
-##3. Postgresql instalation and configuration##
-##(role postgresql)##
+##3. Postgresql instalation and configuration
+##(role postgresql)
 
 Installs and configures target version PostgreSQL  on Rocky Linux 9.
 
@@ -45,13 +45,13 @@ Installs and configures target version PostgreSQL  on Rocky Linux 9.
 - pg_hba.conf baseline: local peer for postgres, SCRAM elsewhere
 - hardening: reomve public access to public schemas
 
-##4. PostgreSQL replication##
-##(pg_replication role)##
+##4. PostgreSQL replication
+##(pg_replication role)
 A minimal, robust role that configures physical streaming replication between two PostgreSQL  nodes with encrypted traffic (TLS).
 Designed to work with previous role (service, PGDG packages, ssl=on, etc.).
 - ensures a replication role exists (LOGIN REPLICATION, optional password).
 - adds hostssl pg_hba.conf entries for standby CIDRs (TLS enforced + SCRAM)
 - initializes replication from standby node by pg_basebackup and consequent replication with replication slot (on master)a
 
-##5. Testing and validation##
+##5. Testing and validation
 TODO
