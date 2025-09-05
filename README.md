@@ -1,13 +1,36 @@
+# Name and purpose
+This collection of ansible routines automates VM, OS and PostgreSQL deploiyng for test and educational purposes. Currently under development is not intended for real PROD environment, TEST/DEV only.
+
 #Requirements
 Requires working ansible infrastructure and package management
 ##Ansible
 Either You have ansible-galaxy or some minimalistic deployment (ansible-core), be sure to meet requirements defined in collections/requirements.yml 
-```ansible-galaxy collection install -r collections/requirements.yml
+```bash
+ansible-galaxy collection install -r collections/requirements.yml
+```
 
 ##Packages
-This stack uses publc repos & packages to install required software
+This stack uses publc repos & packages to install required software. Feel free to edit according Your package management.
 
-#Properties description
+#Usage and typical workflows
+1. The core of this stack consists of ansible roles, each intended to perform a specific task in installation workflow (virtualisation, OS configuration, PostgreSQL configuration, DB replication). Roles could be called consequently or islolated according Your needs (granularity).
+
+2. Typical and recomended scenario is to call overlaying playbook including respective role, e.g.:
+```bash
+ansible-playbook -i inventory playbooks/vm_install
+ansible-playbook -i inventory playbooks/os_config
+ansible-playbook -i inventory playbooks/postgresql
+ansible-playbook -i inventory playbooks/pg_replication
+```
+If You prefer to call roles directly, use role wrapper 'ansible-role', e.g.:
+```bash
+./ansible-role db_local pg_replication -i inventory
+```
+
+3. There will be a shell script wrapping the whole procedure (from VM deploy to PG replication) in one step (TODO)
+
+
+#Properties & description of ansible roles
 ##1. VMs and virtualisation
 ##(role vm_deployment)
 
