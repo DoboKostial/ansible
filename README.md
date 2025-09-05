@@ -62,7 +62,7 @@ Installs and configures target version PostgreSQL  on Rocky Linux 9.
 -  enables SSL with a self-signed fallback, ships a secure pg_hba.conf
 -  supports memory “autotune” (or hard values), computes HugePages from SHOW shared_buffers
 - runs a cron job for WAL archive cleanup at 60%
-→ almost every GUC is mapped to 'postgresql_' variables (comprehensive sane defaults in defaults/main.yml)
+- almost every GUC is mapped to 'postgresql_' variables (comprehensive sane defaults in defaults/main.yml). The idea is the whole postgresql.conf template has all values defined (as a baseline standard) -> part of them overweighted to defaults/main.yml -> desired values per VM defined in group_vars/host_vars
 - pg_hba.conf baseline: local peer for postgres, SCRAM elsewhere
 - hardening: reomve public access to public schemas
 
@@ -71,7 +71,7 @@ A minimal, robust role that configures physical streaming replication between tw
 Designed to work with previous role (service, PGDG packages, ssl=on, etc.).
 - ensures a replication role exists (LOGIN REPLICATION, optional password).
 - adds hostssl pg_hba.conf entries for standby CIDRs (TLS enforced + SCRAM)
-- initializes replication from standby node by pg_basebackup and consequent replication with replication slot (on master)a
+- initializes replication from standby node by pg_basebackup and consequent replication with replication slot (on master node)
 
 ## 5. Testing and validation
 TODO
