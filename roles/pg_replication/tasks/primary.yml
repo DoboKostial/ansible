@@ -1,7 +1,7 @@
 ---
 # roles/pg_replication/tasks/primary.yml
 
-# Pick the first UNIX socket dir (modules will connect via socket)
+# pick the first UNIX socket dir (modules will connect via socket)
 - name: Derive primary unix socket dir
   set_fact:
     _pg_socket_dir: "{{ (postgresql_unix_socket_directories | default('/var/run/postgresql') | string).split(',')[0] | trim }}"
@@ -19,7 +19,7 @@
   until: _pg_ready.rc == 0
   changed_when: false
 
-# Replication role (LOGIN, REPLICATION) — idempotent
+# Replication role (LOGIN, REPLICATION)
 - name: Ensure replication role exists (LOGIN, REPLICATION)
   become_user: "{{ postgresql_system_user | default('postgres') }}"
   community.postgresql.postgresql_user:
@@ -32,7 +32,7 @@
     login_unix_socket: "{{ _pg_socket_dir }}"
     port: "{{ postgresql_port }}"
     db: postgres
-  no_log: "{{ (replication_password is defined) and (replication_password | length > 0) }}"
+  no_log: "{{ (replication_password is defined) and (replication_password | length > 0) }}" # no loging password
 
 # TLS-only replication access for allowed CIDRs
 - name: Ensure pg_hba has hostssl entries for replication

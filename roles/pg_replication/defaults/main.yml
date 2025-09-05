@@ -1,4 +1,4 @@
-# --- Core PG context (aligned with your DB role) ---
+# core PG context
 postgresql_service_name: "postgresql-{{ postgresql_version }}"
 postgresql_bin_dir: "/usr/pgsql-{{ postgresql_version }}/bin"
 postgresql_data_directory: "/data/{{ postgresql_cluster_name }}"
@@ -16,13 +16,13 @@ postgresql_ssl_cert_file: "/etc/ssl/postgresql/{{ postgresql_cluster_name }}/ser
 postgresql_ssl_key_file:  "/etc/ssl/postgresql/{{ postgresql_cluster_name }}/server.key"
 
 
-# --- What this host does in replication ---
+# what this host does in replication
 # Must be 'primary' or 'standby'
 replication_role: null
 
-# --- Common replication settings ---
+# Common replication settings
 replication_user: "replicator"
-replication_password: ""           # put real secret in group_vars (Vault)
+replication_password: ""           # put real secret in vault
 replication_slot: "slot_{{ inventory_hostname | regex_replace('[^a-zA-Z0-9_]+','_') }}"
 replication_application_name: "{{ inventory_hostname }}"
 
