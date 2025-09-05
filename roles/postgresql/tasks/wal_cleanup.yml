@@ -8,8 +8,7 @@
     mode: "0755"
   when: wal_prune_enabled
 
-# Cron varianta běžící jako postgres (stejně jako dřív systemd service)
-# flock zajišťuje, že se job nepřekrývá
+# system cron (rather use pg_cron?)
 - name: Ensure WAL prune cron for this cluster (postgres user)
   cron:
     name: "wal-prune-{{ postgresql_cluster_name }}"

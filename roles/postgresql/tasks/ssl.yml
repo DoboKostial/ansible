@@ -20,7 +20,7 @@
   register: _ssl_crt
   when: (postgresql_ssl | default('off')) | string in ['on','true','1','yes']
 
-# Pokud certy chybí, vygenerujeme self-signed a rovnou je použijeme.
+# If certs are missing, lets generate self-signed and use them
 - name: Generate self-signed SSL if missing
   when:
     - (postgresql_ssl | default('off')) | string in ['on','true','1','yes']
@@ -36,7 +36,7 @@
     chmod 600 "{{ postgresql_ssl_key_file }}"
     chmod 644 "{{ postgresql_ssl_cert_file }}"
 
-# Pro jistotu přenastav práva, i když jsou certy dodané odjinud
+# Permissions setting regardless where are certs from
 - name: Enforce permissions on SSL files
   file:
     path: "{{ item.path }}"

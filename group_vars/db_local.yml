@@ -76,7 +76,7 @@ os_config:
 
   # LVM layout variables
   lvm_device: "/dev/vdb"
-  pv_size: 2
+  pv_size: 20
   vg_name: "vg_data"
   lv_data_name: "lv_data_psql"
   lv_wal_name: "lv_log_psql"

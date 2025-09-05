@@ -1,5 +1,4 @@
 ---
-# This file is normally not necessary in PROD env (vhere ansible is properly configured)
 # just to ensure ansible colections ensured
 # usage: 'ansible-galaxy collection install -r collections/requirements.yml' 
 collections:

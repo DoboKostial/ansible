@@ -14,12 +14,12 @@
       [Service]
       Environment=PGDATA={{ postgresql_data_directory }}
 
-# Okamžitě načti změny unitů (nečekej na handler)
+# read unit changes (no waiting for handler)
 - name: systemd daemon-reload (immediate)
   systemd:
     daemon_reload: true
 
-# Alternativně/duplicitně nastav i přes sysconfig (unit mívá EnvironmentFile=-/etc/sysconfig/pgsql/postgresql-15)
+# Duplicity config via sysconfig (unit has EnvironmentFile=-/etc/sysconfig/pgsql/postgresql-15)
 - name: Ensure /etc/sysconfig/pgsql exists
   file:
     path: /etc/sysconfig/pgsql
@@ -33,7 +33,7 @@
     content: |
       PGDATA={{ postgresql_data_directory }}
 
-# Socket directory(e) musí existovat
+# Socket directory(e) has to be present
 - name: Ensure unix_socket_directories exist
   file:
     path: "{{ item }}"
@@ -43,7 +43,7 @@
     mode: "{{ postgresql_unix_socket_permissions }}"
   loop: "{{ (postgresql_unix_socket_directories | string).split(',') | map('trim') | list }}"
 
-# Start s reloadem pro jistotu
+# Start with reload for sure
 - name: Enable & start PostgreSQL
   systemd:
     name: "{{ postgresql_service_name }}"

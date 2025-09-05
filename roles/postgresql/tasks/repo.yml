@@ -24,11 +24,3 @@
     - postgresql_from_pgdg
     - ansible_os_family == "RedHat"
 
-
-#- name: PGDG | Disable stock module (Rocky 9)
-  #command: dnf -y module disable postgresql
-    #args: { warn: false }
-    #when:
-      #- postgresql_from_pgdg
-      #- ansible_os_family == "RedHat"
-

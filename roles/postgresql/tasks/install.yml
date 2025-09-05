@@ -1,5 +1,5 @@
 ---
-- name: Ensure packages (Rocky 9)
+- name: Ensure packages present
   package:
     name:
       - postgresql15

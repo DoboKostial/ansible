@@ -1,5 +1,5 @@
 ---
-- name: Initdb if PG not initialized (Rocky 9)
+- name: Initdb if PG not initialized
   become_user: postgres
   command: >
     /usr/pgsql-15/bin/initdb
