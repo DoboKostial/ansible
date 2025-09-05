@@ -1,3 +1,13 @@
+#Requirements#
+Requires working ansible infrastructure and package management
+##Ansible##
+Either You have ansible-galaxy or some minimalistic deployment (ansible-core), be sure to meet requirements defined in collections/requirements.yml
+`ansible-galaxy collection install -r collections/requirements.yml`
+##Packages##
+This stack uses publc repos & packages to install required software
+
+
+#Properties description#
 ##1. VMs and virtualisation##
 ##(role vm_deployment)##
 
@@ -35,10 +45,13 @@ Installs and configures target version PostgreSQL  on Rocky Linux 9.
 - pg_hba.conf baseline: local peer for postgres, SCRAM elsewhere
 - hardening: reomve public access to public schemas
 
-##PostgreSQL physical replication##
+##4. PostgreSQL replication##
 ##(pg_replication role)##
 A minimal, robust role that configures physical streaming replication between two PostgreSQL  nodes with encrypted traffic (TLS).
 Designed to work with previous role (service, PGDG packages, ssl=on, etc.).
 - ensures a replication role exists (LOGIN REPLICATION, optional password).
 - adds hostssl pg_hba.conf entries for standby CIDRs (TLS enforced + SCRAM)
-- initializes replication from standby node by pg_basebackup and consequent replication with replication slot (on master)
+- initializes replication from standby node by pg_basebackup and consequent replication with replication slot (on master)a
+
+##5. Testing and validation##
+TODO
