@@ -1,0 +1,221 @@
+---
+# validate_postgresql.yml
+
+- name: "PostgreSQL validation | Common checks (all hosts)"
+  hosts: "{{ playbook_target }}"
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: "Service | Collect systemd facts"
+      ansible.builtin.service_facts:
+
+    - name: "Assert PostgreSQL service is running"
+      ansible.builtin.assert:
+        that:
+          - services['postgresql-{{ postgresql_version }}.service'] is defined
+          - services['postgresql-{{ postgresql_version }}.service'].state == "running"
+        fail_msg: "Service postgresql-{{ postgresql_version }}.service is NOT running on {{ inventory_hostname }}."
+        success_msg: "Service postgresql-{{ postgresql_version }}.service is running."
+
+    - name: "Ping via unix socket (/var/run/postgresql on RHEL/Rocky)"
+      community.postgresql.postgresql_ping:
+        login_user: postgres
+        login_unix_socket: "/var/run/postgresql"
+      become_user: postgres
+
+    - name: Read key settings in one row
+      community.postgresql.postgresql_query:
+        login_user: postgres
+        login_db: postgres
+        login_unix_socket: "/var/run/postgresql"
+        query: >
+          SELECT
+            current_setting('data_directory')   AS data_directory,
+            current_setting('ssl')              AS ssl,
+            current_setting('ssl_cert_file')    AS ssl_cert_file
+      register: show_settings
+      become_user: postgres
+
+    - name: Extract settings
+      ansible.builtin.set_fact:
+        _data_directory: "{{ show_settings.query_result[0].data_directory }}"
+        _ssl_enabled: "{{ show_settings.query_result[0].ssl | lower in ['on','true','1'] }}"
+        _ssl_cert_file_show: "{{ show_settings.query_result[0].ssl_cert_file }}"
+
+    - name: "Assert data_directory equals inventory"
+      ansible.builtin.assert:
+        that:
+          - _data_directory == postgresql_data_directory
+        fail_msg: "data_directory={{ _data_directory }} ≠ expected {{ postgresql_data_directory }}"
+        success_msg: "data_directory OK ({{ _data_directory }})"
+
+    - name: "Resolve physical location of pg_wal (follows symlinks)"
+      ansible.builtin.shell: |
+        set -euo pipefail
+        readlink -f "{{ _data_directory }}/pg_wal"
+      args: { executable: /bin/bash }
+      register: wal_realpath
+      changed_when: false
+
+    - name: "Assert pg_wal path equals inventory"
+      ansible.builtin.assert:
+        that:
+          - wal_realpath.stdout == postgresql_wal_directory
+        fail_msg: "pg_wal → {{ wal_realpath.stdout }} ≠ expected {{ postgresql_wal_directory }}"
+        success_msg: "pg_wal OK ({{ wal_realpath.stdout }})"
+
+    - name: "Assert SSL is enabled"
+      ansible.builtin.assert:
+        that: [ _ssl_enabled ]
+        fail_msg: "SSL is NOT enabled (SHOW ssl = off)."
+        success_msg: "SSL is enabled."
+
+    - name: "Normalize ssl_cert_file to absolute path"
+      ansible.builtin.shell: |
+        set -euo pipefail
+        cert="{{ _ssl_cert_file_show }}"
+        if [[ "${cert}" != /* ]]; then
+          cert="{{ _data_directory }}/${cert}"
+        fi
+        readlink -f "${cert}"
+      args: { executable: /bin/bash }
+      register: ssl_cert_resolved
+      changed_when: false
+
+    - name: "Assert ssl_cert_file equals inventory"
+      ansible.builtin.assert:
+        that:
+          - ssl_cert_resolved.stdout == postgresql_ssl_cert_file
+        fail_msg: "ssl_cert_file {{ ssl_cert_resolved.stdout }} ≠ expected {{ postgresql_ssl_cert_file }}"
+        success_msg: "ssl_cert_file OK ({{ ssl_cert_resolved.stdout }})"
+
+    - name: "Inspect certificate (subject, issuer)"
+      ansible.builtin.shell: |
+        set -euo pipefail
+        openssl x509 -in "{{ postgresql_ssl_cert_file }}" -noout -subject -issuer
+      register: cert_info
+      changed_when: false
+
+    - name: "Evaluate self-signed (subject == issuer)"
+      ansible.builtin.set_fact:
+        _cert_subject: "{{ (cert_info.stdout_lines | select('search','^subject=') | list | first | regex_replace('^subject=\\s*','')) | default('') }}"
+        _cert_issuer:  "{{ (cert_info.stdout_lines | select('search','^issuer=')  | list | first | regex_replace('^issuer=\\s*',''))  | default('') }}"
+
+    - name: "Assert certificate is self-signed"
+      ansible.builtin.assert:
+        that:
+          - _cert_subject != ""
+          - _cert_subject == _cert_issuer
+        fail_msg: "Certificate does NOT look self-signed (subject ≠ issuer)."
+        success_msg: "Self-signed certificate OK: {{ _cert_subject }}"
+
+##################### checks for primary ###########
+- name: "PostgreSQL validation | Primary checks"
+  hosts: "{{ playbook_target }}"
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: Ensure replication_role is present and valid
+      ansible.builtin.assert:
+        that:
+          - hostvars[inventory_hostname].replication_role is defined
+          - (hostvars[inventory_hostname].replication_role | lower) in ['primary','standby']
+        fail_msg: >-
+          'replication_role' is missing or invalid on {{ inventory_hostname }}. Define it in host_vars/<host>.yml as 'primary' or 'standby'.
+
+    - name: Normalize replication_role
+      ansible.builtin.set_fact:
+        _replication_role: "{{ hostvars[inventory_hostname].replication_role | lower }}"
+
+    - name: "Skip non-primary hosts"
+      ansible.builtin.meta: end_host
+      when: _replication_role != 'primary'
+
+    - name: "Fetch current WAL LSN on primary"
+      community.postgresql.postgresql_query:
+        login_user: postgres
+        login_db: postgres
+        login_unix_socket: "/var/run/postgresql"
+        query: "SELECT pg_current_wal_lsn()"
+      register: primary_lsn_q
+      become_user: postgres
+
+    - name: "Expose primary LSN on localhost"
+      ansible.builtin.set_fact:
+        __primary_host: "{{ inventory_hostname }}"
+        __primary_lsn: "{{ primary_lsn_q.query_result[0].pg_current_wal_lsn }}"
+      delegate_to: localhost
+      run_once: true
+
+###################### checks for stanby ######################################
+- name: "PostgreSQL validation | Standby checks"
+  hosts: "{{ playbook_target }}"
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: Ensure replication_role is present and valid
+      ansible.builtin.assert:
+        that:
+          - hostvars[inventory_hostname].replication_role is defined
+          - (hostvars[inventory_hostname].replication_role | lower) in ['primary','standby']
+        fail_msg: >-
+          'replication_role' is missing or invalid on {{ inventory_hostname }}. Define it in host_vars/<host>.yml as 'primary' or 'standby'.
+
+    - name: Normalize replication_role
+      ansible.builtin.set_fact:
+        _replication_role: "{{ hostvars[inventory_hostname].replication_role | lower }}"
+
+    - name: "Skip non-standby hosts"
+      ansible.builtin.meta: end_host
+      when: _replication_role != 'standby'
+
+    - name: "Confirm recovery and WAL receiver"
+      community.postgresql.postgresql_query:
+        login_user: postgres
+        login_db: postgres
+        login_unix_socket: "/var/run/postgresql"
+        query:
+          - "SELECT pg_is_in_recovery()"
+          - "SELECT status FROM pg_stat_wal_receiver LIMIT 1"
+      register: recov
+      become_user: postgres
+
+    - name: "Assert recovery + wal receiver"
+      ansible.builtin.assert:
+        that:
+          - recov.query_results[0].rows[0][0] | bool
+          - (recov.query_results[1].rows | length) > 0
+        fail_msg: "Standby is NOT in recovery or WAL receiver is missing."
+        success_msg: "Standby is in recovery and WAL receiver is running."
+
+    - name: "Get standby LSNs and lag vs primary"
+      community.postgresql.postgresql_query:
+        login_user: postgres
+        login_db: postgres
+        login_unix_socket: "/var/run/postgresql"
+        query: >
+          SELECT
+            pg_last_wal_receive_lsn() AS recv,
+            pg_last_wal_replay_lsn()  AS replay,
+            CASE
+              WHEN %s::pg_lsn IS NULL OR pg_last_wal_replay_lsn() IS NULL THEN NULL
+              ELSE pg_wal_lsn_diff(%s::pg_lsn, pg_last_wal_replay_lsn())
+            END AS bytes_lag
+        positional_args:
+          - "{{ hostvars['localhost'].__primary_lsn | default(None) }}"
+          - "{{ hostvars['localhost'].__primary_lsn | default(None) }}"
+      register: lsn_replica
+      become_user: postgres
+
+    - name: "Report primary/standby LSNs"
+      ansible.builtin.debug:
+        msg:
+          - "Primary host: {{ hostvars['localhost'].__primary_host | default('unknown') }}"
+          - "Primary LSN:  {{ hostvars['localhost'].__primary_lsn  | default('unknown') }}"
+          - "Recv LSN:     {{ lsn_replica.query_result[0].recv | default('NULL') }}"
+          - "Replay LSN:   {{ lsn_replica.query_result[0].replay | default('NULL') }}"
+          - "Byte lag:     {{ lsn_replica.query_result[0].bytes_lag | default('n/a') }}"
+
