@@ -1,5 +1,7 @@
 ---
 # validate_postgresql.yml
+# usage, e.g.:
+# ansible-playbook playbooks/validate_postgres.yml -e playbook_target='db01-local' --become
 
 - name: "PostgreSQL validation | Common checks (all hosts)"
   hosts: "{{ playbook_target }}"
@@ -18,7 +20,7 @@
         fail_msg: "Service postgresql-{{ postgresql_version }}.service is NOT running on {{ inventory_hostname }}."
         success_msg: "Service postgresql-{{ postgresql_version }}.service is running."
 
-    - name: "Ping via unix socket (/var/run/postgresql on RHEL/Rocky)"
+    - name: "ping unix socket (/var/run/postgresql on RHEL/Rocky)"
       community.postgresql.postgresql_ping:
         login_user: postgres
         login_unix_socket: "/var/run/postgresql"
@@ -50,7 +52,7 @@
         fail_msg: "data_directory={{ _data_directory }} ≠ expected {{ postgresql_data_directory }}"
         success_msg: "data_directory OK ({{ _data_directory }})"
 
-    - name: "Resolve physical location of pg_wal (follows symlinks)"
+    - name: "Resolve pysical location of pg_wal (also symlinks)"
       ansible.builtin.shell: |
         set -euo pipefail
         readlink -f "{{ _data_directory }}/pg_wal"
@@ -69,7 +71,7 @@
       ansible.builtin.assert:
         that: [ _ssl_enabled ]
         fail_msg: "SSL is NOT enabled (SHOW ssl = off)."
-        success_msg: "SSL is enabled."
+        success_msg: "SSL is enabled"
 
     - name: "Normalize ssl_cert_file to absolute path"
       ansible.builtin.shell: |
@@ -111,7 +113,7 @@
         success_msg: "Self-signed certificate OK: {{ _cert_subject }}"
 
 ##################### checks for primary ###########
-- name: "PostgreSQL validation | Primary checks"
+- name: "PostgreSQL validation | Primary node checks"
   hosts: "{{ playbook_target }}"
   gather_facts: false
   become: true
