@@ -114,7 +114,7 @@
     label: "{{ item.path }}"
   ignore_errors: true
 
-- name: Rewrite any absolute /data/db01-master paths to this PGDATA (safety)
+- name: Rewrite any absolute /data/db01-master paths to this PGDATA (safety) # this is wrong, hardcoded names and paths, need variables
   replace:
     path: "{{ item.path }}"
     regexp: "/data/db01-master"
@@ -216,7 +216,7 @@
     - { path: "{{ _ssl_key }}",  mode: "0600" }
     - { path: "{{ _ssl_cert }}", mode: "0644" }
 
-# write to postgresql.conf, ať Postgres skutečně použije tyto cesty
+# write to postgresql.conf to enfirce paths
 - name: Ensure ssl=on and ssl_cert/key paths in postgresql.conf (standby)
   lineinfile:
     path: "{{ postgresql_data_directory }}/postgresql.conf"
