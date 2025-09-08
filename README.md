@@ -81,6 +81,3 @@ Designed to work with previous role (service, PGDG packages, ssl=on, etc.).
 - ensures a replication role exists (LOGIN REPLICATION, optional password).
 - adds hostssl pg_hba.conf entries for standby CIDRs (TLS enforced + SCRAM)
 - initializes replication from standby node by pg_basebackup and consequent replication streaming with replication slot (on master node)
-
-## 5. Testing and validation
-TODO
