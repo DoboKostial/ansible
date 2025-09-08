@@ -1,6 +1,6 @@
 ---
 - name: OS configuration (LVM, XFS, tuned, limits)
-  hosts: db_local
+  hosts: "{{ playbook_target}}"
   gather_facts: true
   become: true
 

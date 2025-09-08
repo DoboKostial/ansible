@@ -1,6 +1,6 @@
 ---
 #installing and securing Postgresql cluster
-- hosts: db_local
+- hosts: "{{ playbook_target }}"
   become: yes
   roles:
     - role: postgresql

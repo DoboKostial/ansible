@@ -1,6 +1,6 @@
 ---
 - name: VMs deployment (multi-provider)
-  hosts: localhost
+  hosts: localhost #here virtualization hosts should be
   gather_facts: false
   vars_files:
     - ../group_vars/db_local.yml     # this is dirty hack because being on localhost; intended for libvirt; normally ansible understands path 

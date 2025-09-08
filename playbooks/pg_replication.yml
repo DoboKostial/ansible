@@ -1,5 +1,5 @@
 ---
-- hosts: db_local
+- hosts: "{{ playbook_target}}"
   become: yes
   roles:
     - pg_replication
