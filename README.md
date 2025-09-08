@@ -27,8 +27,17 @@ If You prefer to call roles directly, use role wrapper 'ansible-role', e.g.:
 ./ansible-role db_local pg_replication -i inventory
 ```
 
-3. There will be a shell script wrapping the whole procedure (from VM deploy to PG replication) in one step (TODO)
+3. There is be a shell script wrapping the whole procedure (from VM deploy to PG replication) in one step or by choosing the specific playbook to be run against target machines (deploy.sh).
+Usage:
+```bash
+./deploy.sh <vm_install|os_config|postgresql|pg_replication|all> [TARGETS] -e 'EXTRA VARS ALLOWED'
+```
 
+4. Ansible playbook for PG install and replication status included (playbooks/validate_postgres.yml). This playbook includes no role, runs just basic steps to verify correct status of PostgreSQL instances (primary and replica).
+Usage:
+```bash
+ansible-playbook playbooks/validate_postgres.yml -e playbook_target='HOSTNAME' --become
+```
 
 # Properties & description of ansible roles
 
