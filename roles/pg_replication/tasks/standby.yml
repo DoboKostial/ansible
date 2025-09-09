@@ -63,7 +63,7 @@
         -X stream \
         -h "{{ replication_primary_host }}" \
         -p "{{ replication_primary_port }}" \
-        -U "{{ replication_user }}" \
+        -U "{{ replication_user }}" \ # there is possibility to create slot with -S calling it from replica
         --no-password
       : > "{{ postgresql_data_directory }}/standby.signal"
     fi
