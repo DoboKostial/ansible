@@ -114,10 +114,9 @@
     label: "{{ item.path }}"
   ignore_errors: true
 
-- name: Rewrite any absolute /data/db01-master paths to this PGDATA (safety) # this is wrong, hardcoded names and paths, need variables
+- name: Rewrite absolute PGDATA paths in configs # while copied from master by basebackup
   replace:
     path: "{{ item.path }}"
-    regexp: "/data/db01-master"
     replace: "{{ postgresql_data_directory }}"
   loop: "{{ _pg_conf_files.files }}"
   loop_control:
